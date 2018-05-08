@@ -2,39 +2,38 @@
 # and output a pair of serieses or dataframes contain one or more features
 # generated for train and test datasets.
 
-# TODO: handle categorical data: for nan, first fill some value and
-# encode, and than convert back.
-
-import pandas as pd
 import numpy as np
+import pandas as pd
+from sklearn.preprocessing import LabelEncoder
+
 
 # Primary key.
 def item_id(train_df, test_df):
     return train_df['item_id'], test_df['item_id']
 
 def user_id(train_df, test_df):
-    return train_df['user_id'], test_df['user_id']
+    return encode_column(train_df, test_df, 'user_id')
 
 def region(train_df, test_df):
-    return train_df['region'], test_df['region']
+    return encode_column(train_df, test_df, 'region')
 
 def city(train_df, test_df):
-    return train_df['city'], test_df['city']
+    return encode_column(train_df, test_df, 'city')
 
 def parent_category_name(train_df, test_df):
-    return train_df['parent_category_name'], test_df['parent_category_name']
+    return encode_column(train_df, test_df, 'parent_category_name')
 
 def category_name(train_df, test_df):
-    return train_df['category_name'], test_df['category_name']
+    return encode_column(train_df, test_df, 'category_name')
 
 def param_1(train_df, test_df):
-    return train_df['param_1'], test_df['param_1']
+    return encode_column(train_df, test_df, 'param_1')
 
 def param_2(train_df, test_df):
-    return train_df['param_2'], test_df['param_2']
+    return encode_column(train_df, test_df, 'param_2')
 
 def param_3(train_df, test_df):
-    return train_df['param_3'], test_df['param_3']
+    return encode_column(train_df, test_df, 'param_3')
 
 def title(train_df, test_df):
     return train_df['title'], test_df['title']
@@ -53,13 +52,18 @@ def activation_date(train_df, test_df):
     return train_df['activation_date'], test_df['activation_date']
 
 def user_type(train_df, test_df):
-    return train_df['user_type'], test_df['user_type']
+    return encode_column(train_df, test_df, 'user_type')
 
 def image(train_df, test_df):
     return train_df['image'], test_df['image']
 
 def image_top_1(train_df, test_df):
-    return train_df['image_top_1'], test_df['image_top_1']
+    return encode_column(train_df, test_df, 'image_top_1')
 
-def deal_probability(train_df, test_df):
-    return train_df['deal_probability'], test_df['deal_probability']
+# Encode data from 0 to N, nan will be encoded as -1. If nan need to
+# stay unchanged, need to transform the result.
+def encode_column(train_df, test_df, col):
+    data = train_df[col].append(test_df[col])
+    codes = data.astype('category').cat.codes
+    # return train_code, test_code in pd.Series format.
+    return pd.Series(codes[ : train_df.shape[0]]), pd.Series(codes[train_df.shape[0] :])
