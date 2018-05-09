@@ -18,5 +18,4 @@ feature_map = {
     'user_type': features.user_type,
     'image': features.image,
     'image_top_1': features.image_top_1,
-    'deal_probability': features.deal_probability,
 }

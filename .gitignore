@@ -103,10 +103,11 @@ venv.bak/
 # mypy
 .mypy_cache/
 
-# Data
+# Data and submissions
 *.csv
 *.zip
 pickles/
+submissions/
 
 # Jupyter notebook
 *.ipynb

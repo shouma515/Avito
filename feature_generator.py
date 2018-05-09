@@ -11,12 +11,15 @@ from feature_map import feature_map
 PICKLE_FOLDER = "pickles/"
 TRAIN_PICKLE_PATH = PICKLE_FOLDER + 'df_train'
 TEST_PICKLE_PATH = PICKLE_FOLDER + 'df_test'
+TARGET_COLUMN = 'deal_probability'
+TARGET_PATH = PICKLE_FOLDER + TARGET_COLUMN
 
-
+# Generate pickle for train/test dataset, train target.
 def generate_raw_df_pickle():
     # train dataset
     train_df = pd.read_csv('data/train.csv', parse_dates=['activation_date'])
     train_df.to_pickle(TRAIN_PICKLE_PATH)
+    train_df[TARGET_COLUMN].to_pickle(TARGET_PATH)
     # test dataset
     test_df = pd.read_csv('data/test.csv', parse_dates=['activation_date'])
     test_df.to_pickle(TEST_PICKLE_PATH)

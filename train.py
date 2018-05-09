@@ -1,8 +1,10 @@
 # TODO: 
-# 1. generate submission
-# 2. Add record
+# 1. Add record
 
+import datetime
 import math
+import os
+import pickle
 import time
 from optparse import OptionParser
 
@@ -13,10 +15,14 @@ from sklearn.model_selection import KFold
 
 from configs import config_map
 # TODO: move constants used across files to a single file 
-from feature_generator import PICKLE_FOLDER
+from feature_generator import PICKLE_FOLDER, TARGET_PATH
 from models import model_map
 
 TRAIN_SIZE = 1503424
+TEST_SIZE = 508438
+SUBMISSION_FOLDER = 'submissions/'
+SUBMISSION_HISTORY_FOLDER = SUBMISSION_FOLDER + 'history/'
+
 
 # Prepares train/test data. Target column will be returned when get train data;
 # when get test data, it will be None.
@@ -38,11 +44,13 @@ def prepare_data(feature_names, test=False):
     X = pd.concat(features, axis=1)
     y = None
     if not test:
-        y = pd.read_pickle(PICKLE_FOLDER + 'deal_probability')
+        y = pd.read_pickle(TARGET_PATH)
 
     # Sanity check
-    assert(X.shape == (TRAIN_SIZE, len(feature_names)))
-    if not test:
+    if test:
+        assert(X.shape == (TEST_SIZE, len(feature_names)))
+    else:
+        assert(X.shape == (TRAIN_SIZE, len(feature_names)))
         assert(y.shape == (TRAIN_SIZE,))
         
     return X, y
@@ -68,8 +76,8 @@ def train(config):
     # print(y.head())
     # print(X.index)
     # print(y.index)
-    X = X[:500]
-    y = y[:500]
+    # X = X[:500]
+    # y = y[:500]
 
     kf = KFold(n_splits=folds, shuffle=True, random_state=42)
 
@@ -83,6 +91,9 @@ def train(config):
         print('training...')
         model = get_model(model_name, model_params)
         model.fit(X_train, y_train)
+        train_rmse = math.sqrt(
+            mean_squared_error(y_train, model.predict(X_train)))
+        print('training error: ', train_rmse)
 
         print('validating...')
         rmse = math.sqrt(mean_squared_error(y_val, model.predict(X_val)))
@@ -94,17 +105,75 @@ def train(config):
     print('\nAvg validation error: ', val_error / folds)
 
 
+def predict(config):
+    feature_names = config['features']
+    model_name = config['model']
+    model_params = config['model_params']
+    
+    # Prepares train data.
+    X_train, y_train = prepare_data(feature_names, test=False)
+    X_test, _ = prepare_data(feature_names, test=True)
+
+    print('training...')
+    model = get_model(model_name, model_params)
+    model.fit(X_train, y_train)
+    rmse = math.sqrt(mean_squared_error(y_train, model.predict(X_train)))
+    print('training error: ', rmse)
+
+    print('predicting...')
+    prediction = model.predict(X_test)
+    # Clips predictions to be between 0 and 1.
+    np.clip(prediction, 0, 1, out=prediction)
+    # Sanity check.
+    assert(len(prediction) == TEST_SIZE)
+    
+    submission = pd.read_csv('data/sample_submission.csv')
+    # Sample submission file and test dataset has the same item_id
+    # in the same order.
+    submission['deal_probability'] = prediction
+
+    # Timestamp for naming of the submission files.
+    sub_timestamp = datetime.datetime.now().strftime("%m-%d %H:%M:%S")
+    # Submission history folder is a sub directory of submission folder, thus
+    # the following command will create both on the way.
+    if not os.path.exists(SUBMISSION_HISTORY_FOLDER):
+        os.makedirs(SUBMISSION_HISTORY_FOLDER)
+    # Generates submission csv.
+    submission.to_csv(
+        '%s%s_%s.csv' %(SUBMISSION_FOLDER, config['name'], sub_timestamp),
+        index=False
+    )
+    # Saves the submission and its config as pickle for future investigation.
+    submission_history = {
+        'config': config,
+        'submission': submission
+    }
+    sub_history_file = open(
+        '%s%s_%s' %(
+            SUBMISSION_HISTORY_FOLDER, config['name'], sub_timestamp),
+        'wb')
+    pickle.dump(submission_history, sub_history_file)
+
 if __name__ == '__main__':
     t_start = time.time()
     # parser to parse cmd line option
     parser = OptionParser()
     # add options to parser, currently only config file
-    parser.add_option('-c', '--config', action='store', type='string', dest='config')
-    parser.add_option('-s', '--submit', action='store_true', dest='submit', default=False)
+    parser.add_option(
+        '-c', '--config', action='store', type='string', dest='config')
+    parser.add_option(
+        '-s', '--submit', action='store_true', dest='submit', default=False)
     
     options, _ = parser.parse_args()
     config = config_map[options.config]
-    train(config)
+    if options.submit:
+        # Adds a name fields for the naming of submission files.
+        config['name'] = options.config
+        # Predicts on test set and generates submission files.
+        predict(config)
+    else:
+        # Cross validation.
+        train(config)
 
     t_finish = time.time()
-    print('Total running time: %f min', (t_finish - t_start) / 60)
+    print('Total running time: ', (t_finish - t_start) / 60)
