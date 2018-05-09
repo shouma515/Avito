@@ -70,6 +70,7 @@ def train(config):
     X, y = prepare_data(feature_names, test=False)
     
     # For debug use only
+    # print(X.columns)
     # print(X.describe(include='all'))
     # print(y.describe())
     # print(X.head())

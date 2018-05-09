@@ -29,7 +29,8 @@ lightgbm_config = {
         'num_leaves': 10,
         'objective': 'regression',
         'sub_feature': 0.1228828936613017,
-        'verbose': -1
+        'verbose': -1,
+        'categorical_feature': '0,1,2,3,4,5,6,7,10,11'
     },
     'tuning_params': {
         'parameter_space': {
