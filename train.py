@@ -141,7 +141,7 @@ def predict(config):
     submission['deal_probability'] = prediction
 
     # Timestamp for naming of the submission files.
-    sub_timestamp = datetime.datetime.now().strftime("%m-%d %H:%M:%S")
+    sub_timestamp = datetime.datetime.now().strftime("%m-%d_%H:%M:%S")
     # Submission history folder is a sub directory of submission folder, thus
     # the following command will create both on the way.
     if not os.path.exists(SUBMISSION_HISTORY_FOLDER):

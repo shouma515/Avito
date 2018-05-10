@@ -17,21 +17,21 @@ lightgbm_config_feature_list = [
 ]
 lightgbm_config = {
     'features': lightgbm_config_feature_list,
+    'folds':5,
     'model': 'lightgbm',
-    'folds': 5,
     'model_params': {
         'boosting_type': 'gbdt',
-        'learning_rate': 0.1392149300094899,
+        'categorical_feature': '0,1,2,3,4,5,6,7,10,11',
+        'learning_rate': 0.1377490273014648,
         'max_bin': 130,
-        'metric': 'mse',
-        'min_data': 1,
-        'min_hessian': 0.2372321993762161,
-        'num_boost_round': 300,
-        'num_leaves': 10,
+        'metric': 'mae',
+        'min_data': 240,
+        'min_hessian': 0.09442549830069723,
+        'num_boost_round': 500,
+        'num_leaves': 145,
         'objective': 'regression',
-        'sub_feature': 0.1228828936613017,
-        'verbose': -1,
-        'categorical_feature': '0,1,2,3,4,5,6,7,10,11'
+        'sub_feature': 0.49519528920423994,
+        'verbose': -1
     },
     'tune_params': {
         'param_space': {
@@ -55,6 +55,6 @@ lightgbm_config = {
                 'verbose': -1
             },
         },
-        'max_evals': 5
+        'max_evals': 30
     }
 }
