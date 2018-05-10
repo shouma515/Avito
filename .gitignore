@@ -108,6 +108,7 @@ venv.bak/
 *.zip
 pickles/
 submissions/
+trials/
 
 # Jupyter notebook
 *.ipynb

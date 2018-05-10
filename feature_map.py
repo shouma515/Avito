@@ -1,5 +1,10 @@
 import features
 
+# A dictionary for features, feature generator use this map to get the function
+# that generates each feature.
+# The keys are unique names to identify each feature. Features will be stored in
+# the pickle with the following name by the feature generator.
+# Other code will use name to read the proper pickles.
 feature_map = {
     'item_id': features.item_id,
     'user_id': features.user_id,

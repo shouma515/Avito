@@ -1,4 +1,15 @@
-#TODO:
+# Generates pickles of train/test datasets and features.
+# Train/target/test and feature pickles need to be generated first before used
+# in training or predicting.
+#
+# Sample usage:
+#   python feature_generator.py --raw  # to generate pickles of train and test
+#                                        datasets and train traget
+#   python feature_generator.py --all  # to generate pickles of all the features
+#                                        in the feature map
+#   python feature_generator.py feature_1, feature_2,... # to generate pickles
+#                                                          for those features
+# TODO:
 # 1. encode categorical data, especially image_top_1
 
 import argparse

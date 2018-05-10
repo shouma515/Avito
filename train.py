@@ -1,3 +1,8 @@
+# Train model, generate prediction and submission.
+# Sample usage:
+#   python train.py -c config_name  # to cross validation
+#   python train.py -c config_name -s  # to predict and generate submission:
+#       
 # TODO: 
 # 1. Add record
 
@@ -103,7 +108,9 @@ def train(config):
         
         print('-----------------------------------------')
     
-    print('\nAvg validation error: ', val_error / folds)
+    avg_val_error = val_error / folds
+    print('\nAvg validation error: ', avg_val_error)
+    return avg_val_error
 
 
 def predict(config):
