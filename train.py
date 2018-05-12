@@ -27,8 +27,9 @@ from models import model_map
 TRAIN_SIZE = 1503424
 TEST_SIZE = 508438
 SUBMISSION_FOLDER = 'submissions/'
-SUBMISSION_HISTORY_FOLDER = SUBMISSION_FOLDER + 'history/'
 RECORD_FOLDER = 'records/'
+CV_RECORD_FOLDER = RECORD_FOLDER + 'cv/'
+SUBMISSION_RECORD_FOLDER = RECORD_FOLDER + 'sub/'
 
 
 # Prepares train/test data. Target column will be returned when get train data;
@@ -62,9 +63,35 @@ def prepare_data(feature_names, test=False):
         
     return X, y
 
+
 # Retrieves the model class from model map and creates an instance of it.
 def get_model(model_name, model_params):
     return model_map[model_name](model_params=model_params)
+
+
+# TODO: figure out query json file for analysis.
+# TODO: put utility functions in a separate file.
+# Note that record_cv will change config (remove tune params), but it shouldn't
+# matter in training and predicting.
+# TODO: figure out a better way to handle tuning parameters.
+def record_cv(config, val_errors, train_errors, timestamp=datetime.datetime.now().strftime("%m-%d_%H:%M:%S")):
+    # Remove tune_params from config, as it is not serializable, and we do
+    # not need to record it.
+    config.pop('tune_params')
+    record_dict = {
+        'config': config,
+        'train_errors': train_errors,
+        'val_errors': val_errors,
+        'sub_error': 0 # Need to fill manually after submission.
+    }
+    if not os.path.exists(CV_RECORD_FOLDER):
+        os.makedirs(CV_RECORD_FOLDER)
+    with open(
+        '%s%s_%s' %(CV_RECORD_FOLDER, config['name'], timestamp),
+        'w'
+    ) as fp:
+        json.dump(record_dict, fp)
+
 
 # Returns two array containing validation and train errors of each fold.
 def cross_validate(config, X, y):
@@ -100,6 +127,7 @@ def cross_validate(config, X, y):
     print('\nAvg validation error: ', np.mean(val_errors))
     return val_errors, train_errors
 
+
 # Separates the cross validation with the data preparation step. The main purpose is
 # we do not need to repeat data preparation when tuning a model.
 def train(config, record=True):
@@ -116,30 +144,14 @@ def train(config, record=True):
     # print(y.index)
     # X = X[:500]
     # y = y[:500]
-    val_erros, train_errors = cross_validate(config, X, y)
+    val_errors, train_errors = cross_validate(config, X, y)
     # Records the cross validation in a json file if needed.
-    # TODO: figure out query json file for analysis.
     if record:
-        # Remove tune_params from config, as it is not serializable, and we do
-        # not need to record it.
-        config.pop('tune_params')
-        print(config)
-        record_dict = {
-            'config': config,
-            'train_errors': train_errors,
-            'val_errors': val_erros
-        }
-        timestamp = datetime.datetime.now().strftime("%m-%d_%H:%M:%S")    
-        if not os.path.exists(RECORD_FOLDER):
-            os.makedirs(RECORD_FOLDER)
-        with open(
-            '%s%s_%s' %(RECORD_FOLDER, config['name'], timestamp),
-            'w'
-        ) as fp:
-            json.dump(record_dict, fp)
+        record_cv(config, val_errors, train_errors)
+    
 
-
-def predict(config):
+# Predicts on test data and generates submission.    
+def predict(config, cv=True):
     feature_names = config['features']
     model_name = config['model']
     model_params = config['model_params']
@@ -148,7 +160,16 @@ def predict(config):
     X_train, y_train = prepare_data(feature_names, test=False)
     X_test, _ = prepare_data(feature_names, test=True)
 
-    print('training...')
+    # Timestamp for naming of the submission file and the cv record file.
+    sub_timestamp = datetime.datetime.now().strftime("%m-%d_%H:%M:%S")
+
+    # Cross-validates with the config to record the local validation errors.
+    if cv:
+        print('Cross validating and recording local cv result...')
+        val_errors, train_errors = cross_validate(config, X_train, y_train)
+        record_cv(config, val_errors, train_errors, sub_timestamp)
+    
+    print('training on entire dataset...')
     model = get_model(model_name, model_params)
     model.fit(X_train, y_train)
     rmse = math.sqrt(mean_squared_error(y_train, model.predict(X_train)))
@@ -166,12 +187,10 @@ def predict(config):
     # in the same order.
     submission['deal_probability'] = prediction
 
-    # Timestamp for naming of the submission files.
-    sub_timestamp = datetime.datetime.now().strftime("%m-%d_%H:%M:%S")
     # Submission history folder is a sub directory of submission folder, thus
     # the following command will create both on the way.
-    if not os.path.exists(SUBMISSION_HISTORY_FOLDER):
-        os.makedirs(SUBMISSION_HISTORY_FOLDER)
+    if not os.path.exists(SUBMISSION_RECORD_FOLDER):
+        os.makedirs(SUBMISSION_RECORD_FOLDER)
     # Generates submission csv.
     submission.to_csv(
         '%s%s_%s.csv' %(SUBMISSION_FOLDER, config['name'], sub_timestamp),
@@ -184,27 +203,34 @@ def predict(config):
     }
     sub_history_file = open(
         '%s%s_%s' %(
-            SUBMISSION_HISTORY_FOLDER, config['name'], sub_timestamp),
+            SUBMISSION_RECORD_FOLDER, config['name'], sub_timestamp),
         'wb')
     pickle.dump(submission_history, sub_history_file)
+    # TODO: use kaggle cmd line api to submit and get result.
+    # TODO: centralize records, now we have cv records (in json) and
+    #       submission history (in pickle).
+
 
 if __name__ == '__main__':
     t_start = time.time()
-    # parser to parse cmd line option
+    # Parser to parse cmd line option
     parser = OptionParser()
-    # add options to parser, currently only config file
+    # Adds options to parser, currently only config file
     parser.add_option(
         '-c', '--config', action='store', type='string', dest='config')
     parser.add_option(
         '-s', '--submit', action='store_true', dest='submit', default=False)
-    
+    # Skips cross validation and record when generate submission.
+    parser.add_option(
+        '-n', '--no_cv', action='store_false', dest='cv', default=True)
+
     options, _ = parser.parse_args()
     config = config_map[options.config]
     # Adds a name fields for the naming of submission / record files.
     config['name'] = options.config
     if options.submit:
         # Predicts on test set and generates submission files.
-        predict(config)
+        predict(config, options.cv)
     else:
         # Cross validation.
         train(config)
