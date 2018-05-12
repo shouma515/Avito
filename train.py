@@ -4,7 +4,7 @@
 #   python train.py -c config_name -s  # to predict and generate submission:
 #       
 # TODO: 
-# 1. Add record
+# 1. Add option to print erroneous rows in cross validation.
 
 import datetime
 import math
@@ -22,11 +22,13 @@ from configs import config_map
 # TODO: move constants used across files to a single file 
 from feature_generator import PICKLE_FOLDER, TARGET_PATH
 from models import model_map
+import json
 
 TRAIN_SIZE = 1503424
 TEST_SIZE = 508438
 SUBMISSION_FOLDER = 'submissions/'
 SUBMISSION_HISTORY_FOLDER = SUBMISSION_FOLDER + 'history/'
+RECORD_FOLDER = 'records/'
 
 
 # Prepares train/test data. Target column will be returned when get train data;
@@ -60,34 +62,20 @@ def prepare_data(feature_names, test=False):
         
     return X, y
 
-
+# Retrieves the model class from model map and creates an instance of it.
 def get_model(model_name, model_params):
     return model_map[model_name](model_params=model_params)
 
-
-def train(config):
-    feature_names = config['features']
+# Returns two array containing validation and train errors of each fold.
+def cross_validate(config, X, y):
     model_name = config['model']
     model_params = config['model_params']
     folds = config['folds']
-    
-    # Prepare train data.
-    X, y = prepare_data(feature_names, test=False)
-    
-    # For debug use only
-    # print(X.columns)
-    # print(X.describe(include='all'))
-    # print(y.describe())
-    # print(X.head())
-    # print(y.head())
-    # print(X.index)
-    # print(y.index)
-    # X = X[:500]
-    # y = y[:500]
 
     kf = KFold(n_splits=folds, shuffle=True, random_state=42)
 
-    val_error = 0
+    train_errors = []
+    val_errors = []
     for i, (train_index, val_index) in enumerate(kf.split(X, y)):
         print('Fold ', i)
 
@@ -100,17 +88,55 @@ def train(config):
         train_rmse = math.sqrt(
             mean_squared_error(y_train, model.predict(X_train)))
         print('training error: ', train_rmse)
+        train_errors.append(train_rmse)
 
         print('validating...')
         rmse = math.sqrt(mean_squared_error(y_val, model.predict(X_val)))
         print('validation error: ', rmse)
-        val_error += rmse
+        val_errors.append(rmse)
         
         print('-----------------------------------------')
     
-    avg_val_error = val_error / folds
-    print('\nAvg validation error: ', avg_val_error)
-    return avg_val_error
+    print('\nAvg validation error: ', np.mean(val_errors))
+    return val_errors, train_errors
+
+# Separates the cross validation with the data preparation step. The main purpose is
+# we do not need to repeat data preparation when tuning a model.
+def train(config, record=True):
+    # Prepare train data.    
+    feature_names = config['features']
+    X, y = prepare_data(feature_names, test=False)
+    # For debug use only
+    # print(X.columns)
+    # print(X.describe(include='all'))
+    # print(y.describe())
+    # print(X.head())
+    # print(y.head())
+    # print(X.index)
+    # print(y.index)
+    # X = X[:500]
+    # y = y[:500]
+    val_erros, train_errors = cross_validate(config, X, y)
+    # Records the cross validation in a json file if needed.
+    # TODO: figure out query json file for analysis.
+    if record:
+        # Remove tune_params from config, as it is not serializable, and we do
+        # not need to record it.
+        config.pop('tune_params')
+        print(config)
+        record_dict = {
+            'config': config,
+            'train_errors': train_errors,
+            'val_errors': val_erros
+        }
+        timestamp = datetime.datetime.now().strftime("%m-%d_%H:%M:%S")    
+        if not os.path.exists(RECORD_FOLDER):
+            os.makedirs(RECORD_FOLDER)
+        with open(
+            '%s%s_%s' %(RECORD_FOLDER, config['name'], timestamp),
+            'w'
+        ) as fp:
+            json.dump(record_dict, fp)
 
 
 def predict(config):
@@ -174,9 +200,9 @@ if __name__ == '__main__':
     
     options, _ = parser.parse_args()
     config = config_map[options.config]
+    # Adds a name fields for the naming of submission / record files.
+    config['name'] = options.config
     if options.submit:
-        # Adds a name fields for the naming of submission files.
-        config['name'] = options.config
         # Predicts on test set and generates submission files.
         predict(config)
     else:

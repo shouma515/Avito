@@ -6,29 +6,30 @@
 #                                                   the given trials.
 
 # If encounter "TypeError: 'generator' object is not subscriptable",
+import os
+import pickle
+import time
+from datetime import datetime
+from optparse import OptionParser
+
+import numpy as np
 # try pip install --upgrade git+git://github.com/hyperopt/hyperopt.git
 # see https://github.com/hyperopt/hyperopt/pull/319
-from hyperopt import hp, fmin, tpe, space_eval, STATUS_OK, Trials
+from hyperopt import STATUS_OK, Trials, fmin, hp, space_eval, tpe
 
-from train import train
-
-from datetime import datetime
-import os
-import time
-from optparse import OptionParser
-import pickle
 from configs import config_map
+from train import cross_validate, prepare_data
 
 TRIALS_FOLDER = 'trials/'
 
 def tune_single_model(parameter_space, config_name, max_evals, trials=None):
+    # Prepare train data.
+    X, y = prepare_data(parameter_space['features'], test=False)
     def train_wrapper(params):
-        # print(params)
-        # TODO: prepare feature is repeated here, separate that out
-        loss = train(params)
+        cv_losses, _ = cross_validate(params, X, y)
         # return an object to be recorded in hyperopt trials for future uses
         return {
-            'loss': loss,
+            'loss': np.mean(cv_losses),
             'status': STATUS_OK,
             'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'params': params
@@ -50,7 +51,7 @@ def tune_single_model(parameter_space, config_name, max_evals, trials=None):
     # save the experiment trials in a pickle
     if not os.path.exists(TRIALS_FOLDER):
         os.makedirs(TRIALS_FOLDER)
-    # TODO: save config when dump trials pickle.
+    # TODO: save tuning config when dump trials pickle.
     pickle.dump(trials, open("%s%s_%s" %(TRIALS_FOLDER, config_name, timestamp), "wb"))
 
     return trials
