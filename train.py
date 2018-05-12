@@ -7,6 +7,7 @@
 # 1. Add option to print erroneous rows in cross validation.
 
 import datetime
+import json
 import math
 import os
 import pickle
@@ -22,7 +23,6 @@ from configs import config_map
 # TODO: move constants used across files to a single file 
 from feature_generator import PICKLE_FOLDER, TARGET_PATH
 from models import model_map
-import json
 
 TRAIN_SIZE = 1503424
 TEST_SIZE = 508438

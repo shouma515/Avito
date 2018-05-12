@@ -6,6 +6,8 @@
 #                                                   the given trials.
 
 # If encounter "TypeError: 'generator' object is not subscriptable",
+# try pip install --upgrade git+git://github.com/hyperopt/hyperopt.git
+# see https://github.com/hyperopt/hyperopt/pull/319
 import os
 import pickle
 import time
@@ -13,8 +15,6 @@ from datetime import datetime
 from optparse import OptionParser
 
 import numpy as np
-# try pip install --upgrade git+git://github.com/hyperopt/hyperopt.git
-# see https://github.com/hyperopt/hyperopt/pull/319
 from hyperopt import STATUS_OK, Trials, fmin, hp, space_eval, tpe
 
 from configs import config_map
