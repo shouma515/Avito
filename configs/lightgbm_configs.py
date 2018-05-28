@@ -14,6 +14,14 @@ lightgbm_config_feature_list = [
     # 'activation_date',
     'user_type',
     'image_top_1',
+    'has_image',
+    'title_len',
+    'title_wc',
+    'desc_len',
+    'desc_wc',
+    'listings_per_user',
+    'listings_per_city_date',
+    'price_city_date_mean_max',
 ]
 lightgbm_config = {
     'features': lightgbm_config_feature_list,

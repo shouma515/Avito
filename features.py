@@ -140,32 +140,32 @@ def counts(train, test, col):
 # Number of listings per tuple of the given columns
 def multi_counts(train, test, cols):
     data = train[[*cols, 'item_id']].append(test[[*cols, 'item_id']])
-    count_dict = data.groupby(cols).agg(['count']).to_dict()
-    result = data[cols].apply(get_metric, axis=1, args=('item_id', 'count', count_dict))
+    count_dict = data.groupby(cols).count()
+    result = data[cols].merge(count_dict, how='left', left_on=cols, right_index=True)
+    result = result['item_id'].rename('+'.join(cols) + '-counts', inplace=True)
+    result.fillna(0, inplace=True)
+    result = result.astype(int, copy=False)
     return result[ : train.shape[0]], result[train.shape[0] : ]
 
+# Aggregates on the metrics with the agg_funcs over the dimensions.
+# dimensions, metrics and agg_funcs are all string lists.
+# Always returns a Dataframe
 def aggregate(train, test, dimensions, metrics, agg_funcs):
     cols = dimensions + metrics
     data = train[cols].append(test[cols])
-    metrics_dict = data.groupby(dimensions).agg(agg_funcs).to_dict()
-    features = []
-    for metric in metrics:
-        for agg_func in agg_funcs:
-            metric_series = data[dimensions].apply(get_metric, axis=1, args=(metric, agg_func, metrics_dict))
-            col_name = '_'.join(dimensions) + '-' + metric + '-' + agg_func
-            metric_series.rename(col_name, inplace=True)
-            features.append(metric_series)
-    if len(features) == 1:
-        # Returns the series if there's only one feature.
-        result = features[0]
-    else:
-        result = pd.concat(features, axis=1)
+    metrics_agg = data.groupby(dimensions).agg(agg_funcs)
+    # By default, merge makes a copy of the dataframe.
+    result = data[dimensions].merge(metrics_agg, how='left', left_on=dimensions, right_index=True)
+    result.drop(dimensions, axis=1, inplace=True)
+    # Renames the columns with dimensions to prevent conflict.
+    result.rename(lambda x: '+'.join(dimensions) + '-' + '-'.join(x), axis=1, inplace=True)
     return result[ : train.shape[0]], result[train.shape[0] : ]
 
-def get_metric(dimension_series, metric, agg_func, metrics_dict):
-    lookup_dict = metrics_dict[(metric, agg_func)]
-    key = tuple(dimension_series.tolist())
-    # Rows with nan values in groupby columns are excluded, set their aggregate value to 0.
-    if key not in lookup_dict:
-        return 0
-    return lookup_dict[key]
+
+# def get_metric(dimension_series, metric, agg_func, metrics_dict):
+#     lookup_dict = metrics_dict[(metric, agg_func)]
+#     key = tuple(dimension_series.tolist())
+#     # Rows with nan values in groupby columns are excluded, set their aggregate value to 0.
+#     if key not in lookup_dict:
+#         return 0
+#     return lookup_dict[key]

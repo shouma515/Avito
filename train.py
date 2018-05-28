@@ -2,8 +2,8 @@
 # Sample usage:
 #   python train.py -c config_name  # to cross validation
 #   python train.py -c config_name -s  # to predict and generate submission:
-#       
-# TODO: 
+#
+# TODO:
 # 1. Add option to print erroneous rows in cross validation.
 
 import datetime
@@ -20,7 +20,7 @@ from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import KFold
 
 from configs import config_map
-# TODO: move constants used across files to a single file 
+# TODO: move constants used across files to a single file
 from feature_generator import PICKLE_FOLDER, TARGET_PATH
 from models import model_map
 
@@ -40,27 +40,39 @@ SUBMISSION_RECORD_FOLDER = RECORD_FOLDER + 'sub/'
 #      compare result between trainings, as cross validation depends
 #      on that.
 def prepare_data(feature_names, test=False):
+    DATA_LENTH = TEST_SIZE if test else TRAIN_SIZE
+
     features = []
+    total_feature = 0
     for name in feature_names:
         # Assume all the feature pickles are generated. Any features not
         # generated will cause an error here.
         pickle_path = PICKLE_FOLDER + name
         if test:
             pickle_path += '_test'
-        features.append(pd.read_pickle(pickle_path))
-    
+        feature = pd.read_pickle(pickle_path)
+        # Sanity check
+        assert(feature.shape[0] == DATA_LENTH)
+        if isinstance(feature, pd.DataFrame):
+            total_feature += feature.shape[1]
+        else:
+            # Series
+            total_feature += 1
+
+        features.append(feature)
+
     X = pd.concat(features, axis=1)
     y = None
     if not test:
         y = pd.read_pickle(TARGET_PATH)
 
     # Sanity check
-    if test:
-        assert(X.shape == (TEST_SIZE, len(feature_names)))
-    else:
-        assert(X.shape == (TRAIN_SIZE, len(feature_names)))
+    assert(X.shape == (DATA_LENTH, total_feature))
+    print("Data size:", X.shape)
+    if not test:
         assert(y.shape == (TRAIN_SIZE,))
-        
+        print("Label size:", y.shape)
+
     return X, y
 
 
@@ -121,9 +133,9 @@ def cross_validate(config, X, y):
         rmse = math.sqrt(mean_squared_error(y_val, model.predict(X_val)))
         print('validation error: ', rmse)
         val_errors.append(rmse)
-        
+
         print('-----------------------------------------')
-    
+
     print('\nAvg validation error: ', np.mean(val_errors))
     return val_errors, train_errors
 
@@ -131,7 +143,7 @@ def cross_validate(config, X, y):
 # Separates the cross validation with the data preparation step. The main purpose is
 # we do not need to repeat data preparation when tuning a model.
 def train(config, record=True):
-    # Prepare train data.    
+    # Prepare train data.
     feature_names = config['features']
     X, y = prepare_data(feature_names, test=False)
     # For debug use only
@@ -148,14 +160,14 @@ def train(config, record=True):
     # Records the cross validation in a json file if needed.
     if record:
         record_cv(config, val_errors, train_errors)
-    
 
-# Predicts on test data and generates submission.    
+
+# Predicts on test data and generates submission.
 def predict(config, cv=True):
     feature_names = config['features']
     model_name = config['model']
     model_params = config['model_params']
-    
+
     # Prepares train data.
     X_train, y_train = prepare_data(feature_names, test=False)
     X_test, _ = prepare_data(feature_names, test=True)
@@ -168,7 +180,7 @@ def predict(config, cv=True):
         print('Cross validating and recording local cv result...')
         val_errors, train_errors = cross_validate(config, X_train, y_train)
         record_cv(config, val_errors, train_errors, sub_timestamp)
-    
+
     print('training on entire dataset...')
     model = get_model(model_name, model_params)
     model.fit(X_train, y_train)
@@ -181,7 +193,7 @@ def predict(config, cv=True):
     np.clip(prediction, 0, 1, out=prediction)
     # Sanity check.
     assert(len(prediction) == TEST_SIZE)
-    
+
     submission = pd.read_csv('data/sample_submission.csv')
     # Sample submission file and test dataset has the same item_id
     # in the same order.
