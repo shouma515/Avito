@@ -110,6 +110,7 @@ pickles/
 submissions/
 trials/
 records/
+data/
 
 # Jupyter notebook
 *.ipynb

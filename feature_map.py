@@ -23,4 +23,12 @@ feature_map = {
     'user_type': features.user_type,
     'image': features.image,
     'image_top_1': features.image_top_1,
+    'has_image': features.has_image,
+    'title_len': features.title_len,
+    'title_wc': features.title_wc,
+    'desc_len': features.desc_len,
+    'desc_wc': features.desc_wc,
+    'listings_per_user': features.listings_per_user,
+    'listings_per_city_date': features.listings_per_city_date,
+    'price_city_date_mean_max': features.price_city_date_mean_max,
 }
