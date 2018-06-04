@@ -203,6 +203,9 @@ def predict(config, cv=True):
     # the following command will create both on the way.
     if not os.path.exists(SUBMISSION_RECORD_FOLDER):
         os.makedirs(SUBMISSION_RECORD_FOLDER)
+
+    if not os.path.exists(SUBMISSION_FOLDER):
+        os.makedirs(SUBMISSION_FOLDER)
     # Generates submission csv.
     submission.to_csv(
         '%s%s_%s.csv' %(SUBMISSION_FOLDER, config['name'], sub_timestamp),
