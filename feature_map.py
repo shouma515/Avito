@@ -32,3 +32,7 @@ feature_map = {
     'listings_per_city_date': features.listings_per_city_date,
     'price_city_date_mean_max': features.price_city_date_mean_max,
 }
+
+feature_map_active = {
+    'price_city_date_active_mean_max': features.price_city_date_active_mean_max,
+}

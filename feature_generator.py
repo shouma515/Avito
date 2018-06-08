@@ -5,6 +5,8 @@
 # Sample usage:
 #   python feature_generator.py --raw  # to generate pickles of train and test
 #                                        datasets and train traget
+#   python feature_generator.py --active  # to generate pickles of train active
+#                                        and test active datasets
 #   python feature_generator.py --all  # to generate pickles of all the features
 #                                        in the feature map
 #   python feature_generator.py feature_1, feature_2,... # to generate pickles
@@ -17,11 +19,13 @@ import os
 
 import pandas as pd
 
-from feature_map import feature_map
+from feature_map import feature_map, feature_map_active
 
 PICKLE_FOLDER = "pickles/"
 TRAIN_PICKLE_PATH = PICKLE_FOLDER + 'df_train'
 TEST_PICKLE_PATH = PICKLE_FOLDER + 'df_test'
+TRAIN_ACTIVE_PICKLE_PATH = PICKLE_FOLDER + 'df_train_active'
+TEST_ACTIVE_PICKLE_PATH = PICKLE_FOLDER + 'df_test_active'
 TARGET_COLUMN = 'deal_probability'
 TARGET_PATH = PICKLE_FOLDER + TARGET_COLUMN
 
@@ -35,10 +39,18 @@ def generate_raw_df_pickle():
     test_df = pd.read_csv('data/test.csv', parse_dates=['activation_date'])
     test_df.to_pickle(TEST_PICKLE_PATH)
 
+def generate_active_df_pickle():
+    # train_active dataset
+    train_active_df = pd.read_csv('data/train_active.csv', parse_dates=['activation_date'])
+    train_active_df.to_pickle(TRAIN_ACTIVE_PICKLE_PATH)
+    # test_active dataset
+    test_active_df = pd.read_csv('data/test_active.csv', parse_dates=['activation_date'])
+    test_active_df.to_pickle(TEST_ACTIVE_PICKLE_PATH)
+
 def generate_features(name_list):
     # Reads raw train/test data.
     train_df = pd.read_pickle(TRAIN_PICKLE_PATH)
-    test_df = pd.read_pickle(TEST_PICKLE_PATH)    
+    test_df = pd.read_pickle(TEST_PICKLE_PATH)
 
     for name in name_list:
         try:
@@ -47,10 +59,38 @@ def generate_features(name_list):
             # If a feature name is not in the feature map.
             print(e + 'not found in feature map.')
 
-
 def generate_feature_pickle(name, train_df, test_df):
     # Generates feature series/df for train and test dataset
     train, test = feature_map[name](train_df, test_df)
+    # Renames series so they have proper name when they are used in train/test dataframe.
+    if isinstance(train, pd.Series):
+        train.rename(name, inplace=True)
+        test.rename(name, inplace=True)
+
+    # Generates pickle.
+    pickle_path = PICKLE_FOLDER + name
+    train.to_pickle(pickle_path)
+    test.to_pickle(pickle_path + '_test')
+
+    print(name, ' feature generated.')
+
+def generate_active_features(name_list):
+    # Reads raw train/test data.
+    train_df = pd.read_pickle(TRAIN_PICKLE_PATH)
+    test_df = pd.read_pickle(TEST_PICKLE_PATH)
+    train_active_df = pd.read_pickle(TRAIN_ACTIVE_PICKLE_PATH)
+    test_active_df = pd.read_pickle(TEST_ACTIVE_PICKLE_PATH)
+
+    for name in name_list:
+        try:
+            generate_active_feature_pickle(name, train_df, test_df, train_active_df, test_active_df)
+        except KeyError as e:
+            # If a feature name is not in the feature map.
+            print(e + 'not found in feature map.')
+
+def generate_active_feature_pickle(name, train_df, test_df, train_active_df, test_active_df):
+    # Generates feature series/df for train and test dataset
+    train, test = feature_map_active[name](train_df, test_df, train_active_df, test_active_df)
     # Renames series so they have proper name when they are used in train/test dataframe.
     if isinstance(train, pd.Series):
         train.rename(name, inplace=True)
@@ -71,19 +111,30 @@ def main():
     parser.add_argument('--all', dest='all', action='store_true', default=False,
         help='If generates all features in the feature map.')
     parser.add_argument('--raw', dest='raw', action='store_true', default=False,
-        help='If just generates pickle for train or test (decided by --test flag) dataset.')    
+        help='If just generates pickle for train and test dataset.')
+    parser.add_argument('--active', dest='active', action='store_true', default=False,
+        help='If just generates pickles for/using train and test active dataset.')
     args = parser.parse_args()
 
     if not os.path.exists(PICKLE_FOLDER):
         os.makedirs(PICKLE_FOLDER)
 
     if args.raw:
-        generate_raw_df_pickle()
+        if args.active:
+            generate_active_df_pickle()
+        else:
+            generate_raw_df_pickle()
+
     else:
         feature_names = args.feature_names
-        if args.all:
-            feature_names = list(feature_map.keys())
-        generate_features(feature_names)
+        if args.active:
+            if args.all:
+                feature_names = list(feature_map_active.keys())
+            generate_active_features(feature_names)
+        else:
+            if args.all:
+                feature_names = list(feature_map.keys())
+            generate_features(feature_names)
 
 
 if __name__ == '__main__':
