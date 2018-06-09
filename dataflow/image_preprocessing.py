@@ -41,33 +41,33 @@ class ProcessImageDoFn(beam.DoFn):
       self.missing_image_counter.inc()
       return
 
-    # image_uri = "gs://avito-kaggle/train_jpg/%s.jpg" %image_id
+    image_uri = "gs://avito-kaggle/train_jpg/%s.jpg" %image_id
 
-    # def _open_file_read_binary(uri):
-    #   try:
-    #     return file_io.FileIO(uri, mode='rb')
-    #   except errors.InvalidArgumentError:
-    #     return file_io.FileIO(uri, mode='r')
+    def _open_file_read_binary(uri):
+      try:
+        return file_io.FileIO(uri, mode='rb')
+      except errors.InvalidArgumentError:
+        return file_io.FileIO(uri, mode='r')
 
-    # try:
-    #   with _open_file_read_binary(image_uri) as f:
-    #     image_bytes = f.read()
-    #     img = Image.open(io.BytesIO(image_bytes))
-    # # A variety of different calling libraries throw different exceptions here.
-    # # They all correspond to an unreadable file so we treat them equivalently.
-    # except Exception as e:  # pylint: disable=broad-except
-    #   logging.exception('Error processing image %s: %s', image_uri, str(e))
-    #   return
-
-    archive = zipfile.ZipFile('data/train_jpg.zip', 'r')
-    image_file = 'data/competition_files/train_jpg/%s.jpg' %image_id
     try:
-      with archive.open(image_file) as f:
+      with _open_file_read_binary(image_uri) as f:
         image_bytes = f.read()
         img = Image.open(io.BytesIO(image_bytes))
+    # A variety of different calling libraries throw different exceptions here.
+    # They all correspond to an unreadable file so we treat them equivalently.
     except Exception as e:  # pylint: disable=broad-except
-      logging.exception('Error processing image %s: %s', image_id, str(e))
+      logging.exception('Error processing image %s: %s', image_uri, str(e))
       return
+
+    # archive = zipfile.ZipFile('data/train_jpg.zip', 'r')
+    # image_file = 'data/competition_files/train_jpg/%s.jpg' %image_id
+    # try:
+    #   with archive.open(image_file) as f:
+    #     image_bytes = f.read()
+    #     img = Image.open(io.BytesIO(image_bytes))
+    # except Exception as e:  # pylint: disable=broad-except
+    #   logging.exception('Error processing image %s: %s', image_id, str(e))
+    #   return
 
     width, height = img.size
     yield item_id, width * height

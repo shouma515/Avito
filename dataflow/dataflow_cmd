@@ -1,0 +1,2 @@
+Set up credential as in quick start guide, then run
+python dataflow/image_preprocessing.py --project kaggle-avito-205800 --runner DataflowRunner --staging_location gs://avito-kaggle/staging --temp_location gs://avito-kaggle/temp --input gs://avito-kaggle/train_images10000.csv --output gs://avito-kaggle/output
