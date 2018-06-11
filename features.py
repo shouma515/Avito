@@ -77,12 +77,11 @@ def listings_per_city_date(train, test):
     return multi_counts(train, test, ['city', 'activation_date'])
 
 # Aggregation over some dimensions
-# TODO: figure out how to aggregate / count over multiple dimension
 def price_city_date_mean_max(train, test):
     return aggregate(
         train, test, ['city', 'activation_date'], ['price'], ['mean', 'max'])
 
-def price_city_date_active_mean_max(train, test, train_active, test_active):
+def city_date_price_mean_max_active(train, test, train_active, test_active):
     return aggregate_active(
         train, test, train_active, test_active, ['city', 'activation_date'], ['price'], ['mean', 'max'])
 
@@ -186,6 +185,7 @@ def aggregate_active(
     result_test.rename(lambda x: '+'.join(dimensions) + '-' + '-'.join(x), axis=1, inplace=True)
 
     return result_train, result_test
+
 # def get_metric(dimension_series, metric, agg_func, metrics_dict):
 #     lookup_dict = metrics_dict[(metric, agg_func)]
 #     key = tuple(dimension_series.tolist())

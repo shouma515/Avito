@@ -34,5 +34,5 @@ feature_map = {
 }
 
 feature_map_active = {
-    'price_city_date_active_mean_max': features.price_city_date_active_mean_max,
+    'city_date_price_mean_max_active': features.city_date_price_mean_max_active,
 }

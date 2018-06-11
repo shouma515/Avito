@@ -9,10 +9,13 @@
 #                                        and test active datasets
 #   python feature_generator.py --all  # to generate pickles of all the features
 #                                        in the feature map
-#   python feature_generator.py feature_1, feature_2,... # to generate pickles
-#                                                          for those features
-# TODO:
-# 1. encode categorical data, especially image_top_1
+#   python feature_generator.py --all --active # to generate pickles of all the
+#                                           features in the active feature map,
+#                                           i.e. including active datasets
+#   python feature_generator.py feature_1, feature_2,... 
+#   # to generate pickles for features listed, For one call, the, features need
+#   # to be all in active feature map or normal feature map. Can not be mixed.
+
 
 import argparse
 import os
@@ -24,8 +27,10 @@ from feature_map import feature_map, feature_map_active
 PICKLE_FOLDER = "pickles/"
 TRAIN_PICKLE_PATH = PICKLE_FOLDER + 'df_train'
 TEST_PICKLE_PATH = PICKLE_FOLDER + 'df_test'
-TRAIN_ACTIVE_PICKLE_PATH = PICKLE_FOLDER + 'df_train_active'
-TEST_ACTIVE_PICKLE_PATH = PICKLE_FOLDER + 'df_test_active'
+TRAIN_LITE_PICKLE_PATH = PICKLE_FOLDER + 'df_train_lite'
+TEST_LITE_PICKLE_PATH = PICKLE_FOLDER + 'df_test_lite'
+TRAIN_ACTIVE_LITE_PICKLE_PATH = PICKLE_FOLDER + 'df_train_active_lite'
+TEST_ACTIVE_LITE_PICKLE_PATH = PICKLE_FOLDER + 'df_test_active_lite'
 TARGET_COLUMN = 'deal_probability'
 TARGET_PATH = PICKLE_FOLDER + TARGET_COLUMN
 
@@ -39,13 +44,50 @@ def generate_raw_df_pickle():
     test_df = pd.read_csv('data/test.csv', parse_dates=['activation_date'])
     test_df.to_pickle(TEST_PICKLE_PATH)
 
-def generate_active_df_pickle():
-    # train_active dataset
+# Generate pickles for train, test, train_active and test_active data,
+# lite version.
+def generate_lite_pickle():
+    # train_active dataset lite
+    train_active_df = pd.read_csv('data/train_active_lite.csv', parse_dates=['activation_date'])
+    train_active_df.to_pickle(TRAIN_ACTIVE_LITE_PICKLE_PATH)
+    del train_active_df
+    # test_active dataset lite
+    test_active_df = pd.read_csv('data/test_active_lite.csv', parse_dates=['activation_date'])
+    test_active_df.to_pickle(TEST_ACTIVE_LITE_PICKLE_PATH)
+    del test_active_df
+    # train  lite
+    train_lite_df = pd.read_csv('data/train_lite.csv', parse_dates=['activation_date'])
+    train_lite_df.to_pickle(TRAIN_LITE_PICKLE_PATH)
+    del train_lite_df
+    # test dataset lite
+    test_lite_df = pd.read_csv('data/test_lite.csv', parse_dates=['activation_date'])
+    test_lite_df.to_pickle(TEST_LITE_PICKLE_PATH)
+    del test_lite_df
+
+# Generate the lite version of data, no image, no title, no description.
+# Can reduce the image size down to 1/3.
+def generate_lite():
+    lite_columns = ['item_id', 'user_id', 'region', 'city',
+        'parent_category_name', 'category_name', 'param_1', 'param_2',
+        'param_3', 'price', 'item_seq_number', 'activation_date', 'user_type']
+
+    train_df = pd.read_csv('data/train.csv', parse_dates=['activation_date'])
+    train_df[lite_columns + [TARGET_COLUMN]].to_csv(
+        'data/train_lite.csv', index=False)
+    del train_df
+
+    test_df = pd.read_csv('data/test.csv', parse_dates=['activation_date'])
+    test_df[lite_columns].to_csv('data/test_lite.csv', index=False)
+    del test_df
+
     train_active_df = pd.read_csv('data/train_active.csv', parse_dates=['activation_date'])
-    train_active_df.to_pickle(TRAIN_ACTIVE_PICKLE_PATH)
-    # test_active dataset
+    train_active_df[lite_columns].to_csv('data/train_active_lite.csv', index=False)
+    del train_active_df
+
     test_active_df = pd.read_csv('data/test_active.csv', parse_dates=['activation_date'])
-    test_active_df.to_pickle(TEST_ACTIVE_PICKLE_PATH)
+    test_active_df[lite_columns].to_csv('data/test_active_lite.csv', index=False)
+    del test_active_df
+
 
 def generate_features(name_list):
     # Reads raw train/test data.
@@ -75,15 +117,15 @@ def generate_feature_pickle(name, train_df, test_df):
     print(name, ' feature generated.')
 
 def generate_active_features(name_list):
-    # Reads raw train/test data.
-    train_df = pd.read_pickle(TRAIN_PICKLE_PATH)
-    test_df = pd.read_pickle(TEST_PICKLE_PATH)
-    train_active_df = pd.read_pickle(TRAIN_ACTIVE_PICKLE_PATH)
-    test_active_df = pd.read_pickle(TEST_ACTIVE_PICKLE_PATH)
+    # Use lite dataset when using active data.
+    train_lite_df = pd.read_pickle(TRAIN_LITE_PICKLE_PATH)
+    test_lite_df = pd.read_pickle(TEST_LITE_PICKLE_PATH)
+    train_active_lite_df = pd.read_pickle(TRAIN_ACTIVE_LITE_PICKLE_PATH)
+    test_active_lite_df = pd.read_pickle(TEST_ACTIVE_LITE_PICKLE_PATH)
 
     for name in name_list:
         try:
-            generate_active_feature_pickle(name, train_df, test_df, train_active_df, test_active_df)
+            generate_active_feature_pickle(name, train_lite_df, test_lite_df, train_active_lite_df, test_active_lite_df)
         except KeyError as e:
             # If a feature name is not in the feature map.
             print(e + 'not found in feature map.')
@@ -121,7 +163,7 @@ def main():
 
     if args.raw:
         if args.active:
-            generate_active_df_pickle()
+            generate_lite_pickle()
         else:
             generate_raw_df_pickle()
 
