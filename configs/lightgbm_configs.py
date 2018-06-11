@@ -30,15 +30,15 @@ lightgbm_config = {
     'model_params': {
         'boosting_type': 'gbdt',
         'categorical_feature': '0,1,2,3,4,5,6,7,10,11',
-        'learning_rate': 0.1377490273014648,
-        'max_bin': 130,
-        'metric': 'mae',
-        'min_data': 240,
-        'min_hessian': 0.09442549830069723,
-        'num_boost_round': 500,
+        'learning_rate': 0.15003406796297156,
+        'max_bin': 110,
+        'metric': 'mse',
+        'min_data': 180,
+        'min_hessian': 0.07644471992150681,
+        'num_boost_round': 300,
         'num_leaves': 145,
         'objective': 'regression',
-        'sub_feature': 0.49519528920423994,
+        'sub_feature': 0.36665200573883905,
         'verbose': -1
     },
     'tune_params': {
@@ -63,6 +63,6 @@ lightgbm_config = {
                 'verbose': -1
             },
         },
-        'max_evals': 30
+        'max_evals': 80
     }
 }

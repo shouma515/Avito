@@ -82,6 +82,10 @@ def price_city_date_mean_max(train, test):
     return aggregate(
         train, test, ['city', 'activation_date'], ['price'], ['mean', 'max'])
 
+def price_city_date_active_mean_max(train, test, train_active, test_active):
+    return aggregate_active(
+        train, test, train_active, test_active, ['city', 'activation_date'], ['price'], ['mean', 'max'])
+
 # Boolean features
 # Actually this can be implied by image_top_1 != nan
 def has_image(train, test):
@@ -162,6 +166,26 @@ def aggregate(train, test, dimensions, metrics, agg_funcs):
     return result[ : train.shape[0]], result[train.shape[0] : ]
 
 
+def aggregate_active(
+    train, test, train_active, test_active, dimensions, metrics, agg_funcs):
+    cols = dimensions + metrics
+    data_train = train[cols]
+    data_test = test[cols]
+    data = data_train.append([data_test, train_active[cols], test_active[cols]])
+    metrics_agg = data.groupby(dimensions).agg(agg_funcs)
+
+    # By default, merge makes a copy of the dataframe.
+    result_train = data_train[dimensions].merge(metrics_agg, how='left', left_on=dimensions, right_index=True)
+    result_train.drop(dimensions, axis=1, inplace=True)
+    # Renames the columns with dimensions to prevent conflict.
+    result_train.rename(lambda x: '+'.join(dimensions) + '-' + '-'.join(x), axis=1, inplace=True)
+
+    result_test = data_test[dimensions].merge(metrics_agg, how='left', left_on=dimensions, right_index=True)
+    result_test.drop(dimensions, axis=1, inplace=True)
+    # Renames the columns with dimensions to prevent conflict.
+    result_test.rename(lambda x: '+'.join(dimensions) + '-' + '-'.join(x), axis=1, inplace=True)
+
+    return result_train, result_test
 # def get_metric(dimension_series, metric, agg_func, metrics_dict):
 #     lookup_dict = metrics_dict[(metric, agg_func)]
 #     key = tuple(dimension_series.tolist())
