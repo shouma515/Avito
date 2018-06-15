@@ -33,7 +33,13 @@ def region(train, test):
     return _encode_column(train, test, 'region')
 
 def city(train, test):
-    return _encode_column(train, test, 'city')
+    # City need to be scoped by region to be unique.
+    train_city = train['region'] + train['city']
+    test_city = test['region'] + test['city']
+    data = train_city.append(test_city)
+    codes = data.astype('category').cat.codes
+    # return train_code, test_code in pd.Series format.
+    return pd.Series(codes[ : train.shape[0]]), pd.Series(codes[train.shape[0] :])
 
 def parent_category_name(train, test):
     return _encode_column(train, test, 'parent_category_name')
@@ -75,7 +81,9 @@ def image(train, test):
 def image_top_1(train, test):
     return _encode_column(train, test, 'image_top_1')
 
-
+# Activation date
+def activation_weekday(train, test)
+    return train['activation_date'].dt.weekday, test['activation_date'].dt.weekday
 
 # Generated fields
 
@@ -102,6 +110,40 @@ def city_date_price_mean_max_active(train, test, train_active, test_active):
 def has_image(train, test):
     return train['image'].notnull(), test['image'].notnull()
 
+# Has at list one param
+def has_one_param(train, test):
+    return (train['param_1'].notnull() | train['param_2'].notnull() train['param_3'].notnull(),
+            test['param_1'].notnull() | test['param_2'].notnull() | test['param_3'].notnull())
+
+def has_description(train, test):
+    return train['description'].notnull(), test['description'].notnull()
+
+# https://www.kaggle.com/c/avito-demand-prediction/discussion/56531
+# this post says that ambiguity in infomation causes user to click more on ads,
+# thus lead to a higher deal probability, which is an interesting point.
+def has_price(train, test):
+    return train['price'].notnull(), test['price'].notnull()
+
+# Price features
+def log_price(train, test):
+    return np.log(train['price'] + 0.001), np.log(test['price'] + 0.001)
+
+# Mean price of a parent category
+def parent_cat_price_mean_active(train, test, train_active, test_active):
+    return _retrieve_first_series(_aggregate_active(
+        train, test, train_active, test_active, ['parent_category_name'], ['price'], ['mean']))
+
+# Median price of a parent category
+def parent_cat_price_mean_active(train, test, train_active, test_active):
+    return _retrieve_first_series(_aggregate_active(
+        train, test, train_active, test_active, ['parent_category_name'], ['price'], ['median']))
+
+# Std of price of a parent category
+def parent_cat_price_std_active(train, test, train_active, test_active):
+    return _retrieve_first_series(_aggregate_active(
+        train, test, train_active, test_active, ['parent_category_name'], ['price'], ['std']))
+
+
 # Text meta features
 # Length features
 # Title length
@@ -111,6 +153,16 @@ def title_len(train, test):
 # Title word counts
 def title_wc(train, test):
     return train['title'].map(str.split).map(len), test['title'].map(str.split).map(len)
+
+# Title letters per word
+def title_len_wc_ratio(train, test):
+    def len_wc_ratio(line):
+        word_list = line.split()
+        if len(word_list) == 0:
+            return 0
+        line_len = sum([len(w) for w in word_list])
+        return line_len / len(word_list)
+    return train['title'].map(len_wc_ratio), test['title'].map(len_wc_ratio)
 
 # Number of exclamation point in title
 def title_exclam_count(train, test):
@@ -131,7 +183,6 @@ def title_upper_count_ratio(train, test):
             return 0
         return len([x for x in line if x.isupper()]) / len(line)
     return train['title'].map(upper_count_ratio), test['title'].map(upper_count_ratio)
-
 
 # Number of numbers in title
 def title_num_count(train, test):
@@ -163,8 +214,22 @@ def title_uniq_wc_ratio(train, test):
         return len(set(word_list)) / len(word_list)
     return train['title'].map(uniq_wc_ratio), test['title'].map(uniq_wc_ratio)
 
+# Number of punctuations in title.
+def title_punc_count(train, test):
+    def punc_count(line):
+        return len(RE_PUNCTUATION.findall(line))
+    return train['title'].map(punc_count), test['title'].map(punc_count)
+
+# Ratio of letters to punctuations in title
+def title_letter_punc_ratio(train, test):
+    return _ratio_helper(title_len, title_punc_count, train, test, 99999.9)
+
+# Ratio of words to punctuations in title
+def title_wc_punc_ratio(train, test):
+    return _ratio_helper(title_wc, title_punc_count, train, test, 99999.9)
+
 # Description length
-def desc_len(train, test):
+def desc_len_norm(train, test):
     def norm_len(line):
         line = _normalize_text(line)
         return len(line)
@@ -217,6 +282,22 @@ def desc_wc_norm_ratio(train, test):
     test_desc_wc_ratio = test['description'].map(str).map(norm_ratio)
     test_desc_wc_ratio[test['description'].isnull()] = 0
 
+# Description letters per word, normalized
+def desc_len_wc_norm_ratio(train, test):
+    def len_wc_norm_ratio(line):
+        word_list = _normalize_text_word_list(line)
+        if len(word_list) == 0:
+            return 0
+        line_len = sum([len(w) for w in word_list])
+        return line_len / len(word_list)
+
+    train_desc_wc_ratio = train['description'].map(str).map(len_wc_norm_ratio)
+    # Set missing description length to 0. Otherwise they will be 1 (['nan']).
+    train_desc_wc_ratio[train['description'].isnull()] = 0
+
+    test_desc_wc_ratio = test['description'].map(str).map(len_wc_norm_ratio)
+    test_desc_wc_ratio[test['description'].isnull()] = 0
+
 # Number of exclamation point in description
 def desc_exclam_count(train, test):
     def exclam_count(line):
@@ -230,6 +311,14 @@ def desc_punc_count(train, test):
         return len(RE_PUNCTUATION.findall(line))
     return (train['description'].map(str).map(punc_count),
             test['description'].map(str).map(punc_count))
+
+# Ratio of letters to punctuations in description.
+def desc_letter_punc_ratio(train, test):
+    return _ratio_helper(desc_len_norm, desc_punc_count, train, test, 99999.9)
+
+# Ratio of words to punctuations in description
+def desc_wc_punc_ratio(train, test):
+    return _ratio_helper(desc_wc_norm, desc_punc_count, train, test, 99999.9)
 
 # Number of upper case letters in description
 def desc_upper_count(train, test):
@@ -247,14 +336,14 @@ def desc_upper_count_ratio(train, test):
     return (train['description'].map(str).map(upper_count_ratio),
             test['description'].map(str).map(upper_count_ratio))
 
-# Number of upper case letters in description
+# Number of numbers in description
 def desc_num_count(train, test):
     def num_count(line):
         return len(RE_NUMBER.findall(line))
     return (train['description'].map(str).map(num_count),
             test['description'].map(str).map(num_count))
 
-# Ratio of upper case letters in description
+# Ratio of numbers in description
 def desc_num_count_ratio(train, test):
     def num_count_ratio(line):
         if len(line) == 0:
@@ -280,6 +369,11 @@ def desc_uniq_wc_ratio(train, test):
         return len(set(word_list)) / len(word_list)
     return (train['description'].map(str).map(uniq_wc_ratio),
             test['description'].map(str).map(uniq_wc_ratio))
+
+
+
+
+
 
 # Utility functions
 
@@ -347,6 +441,9 @@ def _aggregate_active(
 
     return result_train, result_test
 
+def _retrieve_first_series(df):
+    return df.ix[:,0]
+
 # def get_metric(dimension_series, metric, agg_func, metrics_dict):
 #     lookup_dict = metrics_dict[(metric, agg_func)]
 #     key = tuple(dimension_series.tolist())
@@ -369,3 +466,32 @@ def _normalize_text_word_list(text):
     text = text.strip().split(' ')
     return [x for x in text if len(x) > 1 and x not in stopwords]
 
+# norminator and denominator have to be pandas series of same length.
+# when present, default value is used when denominator is zero. (else, result
+# will be inf, no error will be report)
+# when present, fill na value is used to replace nan in result.
+def _ratio(nominator, denominator, default_value=None, fillna_value=None):
+    result = nominator / denominator
+    if default_value is not None:
+        # The row where cond is True (i.e. denominator not zero) is NOT changed.
+        result.where(denominator != 0, default_value, inplace=True)
+    if fillna_value is not None:
+        result.where(result.notnull(), fillna_value)
+    return result
+
+# f1 and f2 are functions that calculate feature series.
+# functions that returns feature dataframes cannot be used here.
+# returns train and test feature series of f1/f2
+def _ratio_helper(f1, f2, train, test, default_value=None, fillna_value=None)
+    train_norm, test_norm = f1(train, test)
+    train_denorm, test_denorm = f2(train, test)
+    return (_ratio(train_norm, train_denorm, default_value, fillna_value),
+            _ratio(test_norm, test_denorm, default_value, fillna_value)
+
+def _ratio_helper(f1, f2,
+        train, test, train_active, test_active,
+        default_value=None, fillna_value=None):
+    train_norm, test_norm = f1(train, test, train_active, test_active)
+    train_denorm, test_denorm = f2(train, test, train_active, test_active)
+    return (_ratio(train_norm, train_denorm, default_value, fillna_value),
+            _ratio(test_norm, test_denorm, default_value, fillna_value)
