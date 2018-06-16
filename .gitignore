@@ -120,3 +120,6 @@ data/
 
 # Jpg image
 .jpg
+
+# Image features
+image*

@@ -3,6 +3,7 @@
 # generated for train and test datasets.
 # IMPORTANT: all the functions here should be pure functions, i.e. they should
 #            not modify the input train or test dataframes.
+# All private function need to be start with _
 
 import numpy as np
 import pandas as pd
@@ -13,11 +14,10 @@ from nltk.corpus import stopwords
 
 
 # Global variables
-stopwords = {x: 1 for x in stopwords.words('russian')}
-non_alphanums = re.compile(u'[^A-Za-z0-9]+')
-non_alphanumpunct = re.compile(u'[^A-Za-z0-9\.?!,; \(\)\[\]\'\"\$]+')
+STOPWORDS = {x: 1 for x in stopwords.words('russian')}
 RE_PUNCTUATION = re.compile('|'.join([re.escape(x) for x in string.punctuation]))
 RE_NUMBER = re.compile('\d+')
+
 
 
 # Original fields
@@ -82,7 +82,7 @@ def image_top_1(train, test):
     return _encode_column(train, test, 'image_top_1')
 
 # Activation date
-def activation_weekday(train, test)
+def activation_weekday(train, test):
     return train['activation_date'].dt.weekday, test['activation_date'].dt.weekday
 
 # Generated fields
@@ -101,10 +101,6 @@ def price_city_date_mean_max(train, test):
     return _aggregate(
         train, test, ['city', 'activation_date'], ['price'], ['mean', 'max'])
 
-def city_date_price_mean_max_active(train, test, train_active, test_active):
-    return _aggregate_active(
-        train, test, train_active, test_active, ['city', 'activation_date'], ['price'], ['mean', 'max'])
-
 # Boolean features
 # Actually this can be implied by image_top_1 != nan
 def has_image(train, test):
@@ -112,7 +108,7 @@ def has_image(train, test):
 
 # Has at list one param
 def has_one_param(train, test):
-    return (train['param_1'].notnull() | train['param_2'].notnull() train['param_3'].notnull(),
+    return (train['param_1'].notnull() | train['param_2'].notnull() | train['param_3'].notnull(),
             test['param_1'].notnull() | test['param_2'].notnull() | test['param_3'].notnull())
 
 def has_description(train, test):
@@ -127,22 +123,6 @@ def has_price(train, test):
 # Price features
 def log_price(train, test):
     return np.log(train['price'] + 0.001), np.log(test['price'] + 0.001)
-
-# Mean price of a parent category
-def parent_cat_price_mean_active(train, test, train_active, test_active):
-    return _retrieve_first_series(_aggregate_active(
-        train, test, train_active, test_active, ['parent_category_name'], ['price'], ['mean']))
-
-# Median price of a parent category
-def parent_cat_price_mean_active(train, test, train_active, test_active):
-    return _retrieve_first_series(_aggregate_active(
-        train, test, train_active, test_active, ['parent_category_name'], ['price'], ['median']))
-
-# Std of price of a parent category
-def parent_cat_price_std_active(train, test, train_active, test_active):
-    return _retrieve_first_series(_aggregate_active(
-        train, test, train_active, test_active, ['parent_category_name'], ['price'], ['std']))
-
 
 # Text meta features
 # Length features
@@ -282,6 +262,8 @@ def desc_wc_norm_ratio(train, test):
     test_desc_wc_ratio = test['description'].map(str).map(norm_ratio)
     test_desc_wc_ratio[test['description'].isnull()] = 0
 
+    return train_desc_wc_ratio, test_desc_wc_ratio
+
 # Description letters per word, normalized
 def desc_len_wc_norm_ratio(train, test):
     def len_wc_norm_ratio(line):
@@ -291,12 +273,14 @@ def desc_len_wc_norm_ratio(train, test):
         line_len = sum([len(w) for w in word_list])
         return line_len / len(word_list)
 
-    train_desc_wc_ratio = train['description'].map(str).map(len_wc_norm_ratio)
+    train_desc_len_wc_norm_ratio = train['description'].map(str).map(len_wc_norm_ratio)
     # Set missing description length to 0. Otherwise they will be 1 (['nan']).
-    train_desc_wc_ratio[train['description'].isnull()] = 0
+    train_desc_len_wc_norm_ratio[train['description'].isnull()] = 0
 
-    test_desc_wc_ratio = test['description'].map(str).map(len_wc_norm_ratio)
-    test_desc_wc_ratio[test['description'].isnull()] = 0
+    test_desc_len_wc_norm_ratio = test['description'].map(str).map(len_wc_norm_ratio)
+    test_desc_len_wc_norm_ratio[test['description'].isnull()] = 0
+
+    return train_desc_len_wc_norm_ratio, test_desc_len_wc_norm_ratio
 
 # Number of exclamation point in description
 def desc_exclam_count(train, test):
@@ -370,11 +354,6 @@ def desc_uniq_wc_ratio(train, test):
     return (train['description'].map(str).map(uniq_wc_ratio),
             test['description'].map(str).map(uniq_wc_ratio))
 
-
-
-
-
-
 # Utility functions
 
 # Encode data from 0 to N, nan will be encoded as -1. If nan need to
@@ -417,30 +396,6 @@ def _aggregate(train, test, dimensions, metrics, agg_funcs):
     result.rename(lambda x: '+'.join(dimensions) + '-' + '-'.join(x), axis=1, inplace=True)
     return result[ : train.shape[0]], result[train.shape[0] : ]
 
-
-def _aggregate_active(
-    train, test, train_active, test_active, dimensions, metrics, agg_funcs):
-    cols = dimensions + metrics
-    data_train = train[cols]
-    data_test = test[cols]
-    data = data_train.append([data_test, train_active[cols], test_active[cols]])
-    # There are duplicate item_ids in train_active and test_active.
-    data.drop_duplicate(['item_id'], inplace=True)
-    metrics_agg = data.groupby(dimensions).agg(agg_funcs)
-
-    # By default, merge makes a copy of the dataframe.
-    result_train = data_train[dimensions].merge(metrics_agg, how='left', left_on=dimensions, right_index=True)
-    result_train.drop(dimensions, axis=1, inplace=True)
-    # Renames the columns with dimensions to prevent conflict.
-    result_train.rename(lambda x: '+'.join(dimensions) + '-' + '-'.join(x), axis=1, inplace=True)
-
-    result_test = data_test[dimensions].merge(metrics_agg, how='left', left_on=dimensions, right_index=True)
-    result_test.drop(dimensions, axis=1, inplace=True)
-    # Renames the columns with dimensions to prevent conflict.
-    result_test.rename(lambda x: '+'.join(dimensions) + '-' + '-'.join(x), axis=1, inplace=True)
-
-    return result_train, result_test
-
 def _retrieve_first_series(df):
     return df.ix[:,0]
 
@@ -457,14 +412,14 @@ def _normalize_text(text):
     for s in string.punctuation:
         text = text.replace(s, ' ')
     text = text.strip().split(' ')
-    return u' '.join(x for x in text if len(x) > 1 and x not in stopwords)
+    return u' '.join(x for x in text if len(x) > 1 and x not in STOPWORDS)
 
 def _normalize_text_word_list(text):
     text = text.lower().strip()
     for s in string.punctuation:
         text = text.replace(s, ' ')
     text = text.strip().split(' ')
-    return [x for x in text if len(x) > 1 and x not in stopwords]
+    return [x for x in text if len(x) > 1 and x not in STOPWORDS]
 
 # norminator and denominator have to be pandas series of same length.
 # when present, default value is used when denominator is zero. (else, result
@@ -482,16 +437,8 @@ def _ratio(nominator, denominator, default_value=None, fillna_value=None):
 # f1 and f2 are functions that calculate feature series.
 # functions that returns feature dataframes cannot be used here.
 # returns train and test feature series of f1/f2
-def _ratio_helper(f1, f2, train, test, default_value=None, fillna_value=None)
+def _ratio_helper(f1, f2, train, test, default_value=None, fillna_value=None):
     train_norm, test_norm = f1(train, test)
     train_denorm, test_denorm = f2(train, test)
     return (_ratio(train_norm, train_denorm, default_value, fillna_value),
-            _ratio(test_norm, test_denorm, default_value, fillna_value)
-
-def _ratio_helper(f1, f2,
-        train, test, train_active, test_active,
-        default_value=None, fillna_value=None):
-    train_norm, test_norm = f1(train, test, train_active, test_active)
-    train_denorm, test_denorm = f2(train, test, train_active, test_active)
-    return (_ratio(train_norm, train_denorm, default_value, fillna_value),
-            _ratio(test_norm, test_denorm, default_value, fillna_value)
+            _ratio(test_norm, test_denorm, default_value, fillna_value))

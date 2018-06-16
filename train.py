@@ -39,7 +39,7 @@ SUBMISSION_RECORD_FOLDER = RECORD_FOLDER + 'sub/'
 #   2. Order of training data should not be changed if you want to
 #      compare result between trainings, as cross validation depends
 #      on that.
-def prepare_data(feature_names, test=False):
+def prepare_data(feature_names, image_features_folders=[], test=False):
     DATA_LENTH = TEST_SIZE if test else TRAIN_SIZE
 
     features = []
@@ -61,10 +61,28 @@ def prepare_data(feature_names, test=False):
 
         features.append(feature)
 
+    # Add image features.
+    if len(image_features_folders) > 0:
+        # load item id to join image features.
+        item_id_pickle_path = PICKLE_FOLDER + 'item_id'
+        if test:
+                item_id_pickle_path += '_test'
+            item_id = pd.read_pickle(item_id_pickle_path)
+        # Sanity check
+        assert(item_id.shape[0] == DATA_LENTH)
+        image_features = load_image_features(image_features_folders)
+        image_features = item_id.merge(
+            image_features, how='left', on='item_id', validate='1:1')
+        image_features.drop('item_id', inplace=True)
+        # Sanity check
+        assert(image_features.shape[0] == DATA_LENTH)
+        features.append(image_features)
+
     X = pd.concat(features, axis=1)
     y = None
     if not test:
         y = pd.read_pickle(TARGET_PATH)
+
 
     # Sanity check
     assert(X.shape == (DATA_LENTH, total_feature))
@@ -74,6 +92,31 @@ def prepare_data(feature_names, test=False):
         print("Label size:", y.shape)
 
     return X, y
+
+# Each set of image features is in one folder. And we load features folder by
+# folder and join them with item_id.
+def load_image_features(image_feature_folders):
+    assert(len(image_feature_folders) > 0)
+    folder0 = image_feature_folders[0]
+    image_features = load_image_feature(folder0)
+    for folder in image_feature_folders[1:]:
+        feature = load_image_feature(folder)
+        image_features.merge(feature, how='left', on='item_id', validate='1:1')
+
+    return image_features
+
+# Each image feature folder should contain a schema file(with names of the
+# columns in the feature file) and a image_feature.csv file. The features need
+# to have item_id and image_id as primay key.
+def load_image_feature(folder):
+    with open(folder + '/schema', 'r') as schema_in:
+            schema = schema_in.read().strip()
+    schema = schema.split()
+    image_feature = pd.read_csv(
+        folder + '/image_feature.csv', header=None, names=schema)
+    # image ids is used debug, we don't use them in training.
+    image_feature.drop('image', inplace=True)
+    return image_feature
 
 
 # Retrieves the model class from model map and creates an instance of it.
@@ -86,7 +129,9 @@ def get_model(model_name, model_params):
 # Note that record_cv will change config (remove tune params), but it shouldn't
 # matter in training and predicting.
 # TODO: figure out a better way to handle tuning parameters.
-def record_cv(config, val_errors, train_errors, timestamp=datetime.datetime.now().strftime("%m-%d_%H:%M:%S")):
+def record_cv(
+    config, val_errors, train_errors,
+    timestamp=datetime.datetime.now().strftime("%m-%d_%H:%M:%S")):
     # Remove tune_params from config, as it is not serializable, and we do
     # not need to record it.
     config.pop('tune_params')
@@ -145,7 +190,8 @@ def cross_validate(config, X, y):
 def train(config, record=True):
     # Prepare train data.
     feature_names = config['features']
-    X, y = prepare_data(feature_names, test=False)
+    image_features_folders = config['image_features_folders']
+    X, y = prepare_data(feature_names, image_features_folders, test=False)
     # For debug use only
     # print(X.columns)
     # print(X.describe(include='all'))
@@ -165,12 +211,14 @@ def train(config, record=True):
 # Predicts on test data and generates submission.
 def predict(config, cv=True):
     feature_names = config['features']
+    image_features_folders = config['image_features_folders']
     model_name = config['model']
     model_params = config['model_params']
 
     # Prepares train data.
-    X_train, y_train = prepare_data(feature_names, test=False)
-    X_test, _ = prepare_data(feature_names, test=True)
+    X_train, y_train = prepare_data(
+        feature_names, image_features_folders, test=False)
+    X_test, _ = prepare_data(feature_names, image_features_folders, test=True)
 
     # Timestamp for naming of the submission file and the cv record file.
     sub_timestamp = datetime.datetime.now().strftime("%m-%d_%H:%M:%S")

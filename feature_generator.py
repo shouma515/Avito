@@ -12,7 +12,7 @@
 #   python feature_generator.py --all --active # to generate pickles of all the
 #                                           features in the active feature map,
 #                                           i.e. including active datasets
-#   python feature_generator.py feature_1, feature_2,... 
+#   python feature_generator.py feature_1, feature_2,...
 #   # to generate pickles for features listed, For one call, the, features need
 #   # to be all in active feature map or normal feature map. Can not be mixed.
 
@@ -163,6 +163,7 @@ def main():
 
     if args.raw:
         if args.active:
+            generate_lite()
             generate_lite_pickle()
         else:
             generate_raw_df_pickle()

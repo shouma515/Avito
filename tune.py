@@ -24,7 +24,7 @@ TRIALS_FOLDER = 'trials/'
 
 def tune_single_model(parameter_space, config_name, max_evals, trials=None):
     # Prepare train data.
-    X, y = prepare_data(parameter_space['features'], test=False)
+    X, y = prepare_data(parameter_space['features'], parameter_space['image_feature_folders'], test=False)
     def train_wrapper(params):
         cv_losses, _ = cross_validate(params, X, y)
         # return an object to be recorded in hyperopt trials for future uses
@@ -73,7 +73,7 @@ def main():
     # If an existing tuning's trials is given, continues tuning it.
     if options.trials_file != '':
         trials_path = TRIALS_FOLDER + options.trials_file
-        trials = pickle.load(open(trials_path, 'rb'))    
+        trials = pickle.load(open(trials_path, 'rb'))
         print('Using trials: %s' %trials_path)
 
     tune_params = config['tune_params']

@@ -1,2 +1,13 @@
 Set up credential as in quick start guide, then run
-python dataflow/image_preprocessing.py --project kaggle-avito-205800 --runner DataflowRunner --staging_location gs://avito-kaggle/staging --temp_location gs://avito-kaggle/temp --input gs://avito-kaggle/train_images10000.csv --output gs://avito-kaggle/output/image_size --num_workers 1 --max_num_workers 1 --worker_machine_type n1-standard-2 --disk_size_gb 50 --requirements_file requirements.txt 
+python dataflow/image_preprocessing.py \
+  --project kaggle-avito-205800 \
+  --runner DataflowRunner \
+  --staging_location gs://avito-kaggle/staging \
+  --temp_location gs://avito-kaggle/temp \
+  --input gs://avito-kaggle/train_images10000.csv \
+  --output gs://avito-kaggle/output/image_size \
+  --num_workers 15 \
+  --max_num_workers 15 \
+  --worker_machine_type n1-standard-2 \
+  --disk_size_gb 50 \
+  --requirements_file requirements.txt
