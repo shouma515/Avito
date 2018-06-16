@@ -39,7 +39,7 @@ SUBMISSION_RECORD_FOLDER = RECORD_FOLDER + 'sub/'
 #   2. Order of training data should not be changed if you want to
 #      compare result between trainings, as cross validation depends
 #      on that.
-def prepare_data(feature_names, image_features_folders=[], test=False):
+def prepare_data(feature_names, mage_feature_folders=[], test=False):
     DATA_LENTH = TEST_SIZE if test else TRAIN_SIZE
 
     features = []
@@ -62,20 +62,23 @@ def prepare_data(feature_names, image_features_folders=[], test=False):
         features.append(feature)
 
     # Add image features.
-    if len(image_features_folders) > 0:
+    if len(mage_feature_folders) > 0:
         # load item id to join image features.
         item_id_pickle_path = PICKLE_FOLDER + 'item_id'
         if test:
-                item_id_pickle_path += '_test'
-            item_id = pd.read_pickle(item_id_pickle_path)
+            item_id_pickle_path += '_test'
+        # Need to convert the item_id Series to DataFrame for merge with image
+        # features.
+        item_id = pd.read_pickle(item_id_pickle_path).to_frame()
         # Sanity check
         assert(item_id.shape[0] == DATA_LENTH)
-        image_features = load_image_features(image_features_folders)
+        image_features = load_image_features(mage_feature_folders)
         image_features = item_id.merge(
             image_features, how='left', on='item_id', validate='1:1')
-        image_features.drop('item_id', inplace=True)
+        image_features.drop('item_id', axis=1, inplace=True)
         # Sanity check
         assert(image_features.shape[0] == DATA_LENTH)
+        total_feature += image_features.shape[1]
         features.append(image_features)
 
     X = pd.concat(features, axis=1)
@@ -90,6 +93,13 @@ def prepare_data(feature_names, image_features_folders=[], test=False):
     if not test:
         assert(y.shape == (TRAIN_SIZE,))
         print("Label size:", y.shape)
+
+    # Debug info
+    print(X.columns)
+    print(X.shape)
+    if not test:
+        print(y.name)
+        print(y.shape)
 
     return X, y
 
@@ -109,13 +119,16 @@ def load_image_features(image_feature_folders):
 # columns in the feature file) and a image_feature.csv file. The features need
 # to have item_id and image_id as primay key.
 def load_image_feature(folder):
+    # # debug
+    # print('image feature', folder)
+
     with open(folder + '/schema', 'r') as schema_in:
             schema = schema_in.read().strip()
-    schema = schema.split()
+    schema = schema.split(',')
     image_feature = pd.read_csv(
         folder + '/image_feature.csv', header=None, names=schema)
     # image ids is used debug, we don't use them in training.
-    image_feature.drop('image', inplace=True)
+    image_feature.drop('image', axis=1, inplace=True)
     return image_feature
 
 
@@ -190,8 +203,8 @@ def cross_validate(config, X, y):
 def train(config, record=True):
     # Prepare train data.
     feature_names = config['features']
-    image_features_folders = config['image_features_folders']
-    X, y = prepare_data(feature_names, image_features_folders, test=False)
+    image_feature_folders = config['image_feature_folders']
+    X, y = prepare_data(feature_names, image_feature_folders, test=False)
     # For debug use only
     # print(X.columns)
     # print(X.describe(include='all'))
@@ -211,14 +224,14 @@ def train(config, record=True):
 # Predicts on test data and generates submission.
 def predict(config, cv=True):
     feature_names = config['features']
-    image_features_folders = config['image_features_folders']
+    mage_feature_folders = config['mage_feature_folders']
     model_name = config['model']
     model_params = config['model_params']
 
     # Prepares train data.
     X_train, y_train = prepare_data(
-        feature_names, image_features_folders, test=False)
-    X_test, _ = prepare_data(feature_names, image_features_folders, test=True)
+        feature_names, mage_feature_folders, test=False)
+    X_test, _ = prepare_data(feature_names, mage_feature_folders, test=True)
 
     # Timestamp for naming of the submission file and the cv record file.
     sub_timestamp = datetime.datetime.now().strftime("%m-%d_%H:%M:%S")

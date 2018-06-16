@@ -16,29 +16,33 @@ def city_date_price_mean_max_active(train, test, train_active, test_active):
 
 # Mean price of a parent category
 def parent_cat_price_mean_active(train, test, train_active, test_active):
-    return _retrieve_first_series(_aggregate(
+    return _retrieve_first_series(*_aggregate(
         train, test, train_active, test_active, ['parent_category_name'], ['price'], ['mean']))
 
 # Median price of a parent category
 def parent_cat_price_median_active(train, test, train_active, test_active):
-    return _retrieve_first_series(_aggregate(
+    return _retrieve_first_series(*_aggregate(
         train, test, train_active, test_active, ['parent_category_name'], ['price'], ['median']))
 
 # Std of price of a parent category
 def parent_cat_price_std_active(train, test, train_active, test_active):
-    return _retrieve_first_series(_aggregate(
+    return _retrieve_first_series(*_aggregate(
         train, test, train_active, test_active, ['parent_category_name'], ['price'], ['std']))
 
 
 # Utility functions
 def _aggregate(
     train, test, train_active, test_active, dimensions, metrics, agg_funcs):
-    cols = dimensions + metrics
+    # item_id column is needed to drop duplicate rows in train_active and
+    # test_active
+    cols = ['item_id'] + dimensions + metrics
     data_train = train[cols]
     data_test = test[cols]
     data = data_train.append([data_test, train_active[cols], test_active[cols]])
     # There are duplicate item_ids in train_active and test_active.
-    data.drop_duplicate(['item_id'], inplace=True)
+    data.drop_duplicates('item_id', inplace=True)
+    # Drop item_id column as it is not used in grouping
+    data.drop('item_id', axis=1, inplace=True)
     metrics_agg = data.groupby(dimensions).agg(agg_funcs)
 
     # By default, merge makes a copy of the dataframe.
@@ -54,8 +58,9 @@ def _aggregate(
 
     return result_train, result_test
 
-def _retrieve_first_series(df):
-    return df.ix[:,0]
+# Retrieve first column as a series from train and test feature dataframes.
+def _retrieve_first_series(train_feature_df, test_feature_df):
+    return train_feature_df.ix[:,0], test_feature_df.ix[:,0]
 
 # norminator and denominator have to be pandas series of same length.
 # when present, default value is used when denominator is zero. (else, result
@@ -70,7 +75,8 @@ def _ratio(nominator, denominator, default_value=None, fillna_value=None):
         result.where(result.notnull(), fillna_value)
     return result
 
-# f1 and f2 are functions that calculate feature series.
+# f1 and f2 are functions that calculate feature series. (No support for
+# single column dataframe now).
 # functions that returns feature dataframes cannot be used here.
 # returns train and test feature series of f1/f2
 def _ratio_helper(f1, f2,

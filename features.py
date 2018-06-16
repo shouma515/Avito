@@ -16,7 +16,7 @@ from nltk.corpus import stopwords
 # Global variables
 STOPWORDS = {x: 1 for x in stopwords.words('russian')}
 RE_PUNCTUATION = re.compile('|'.join([re.escape(x) for x in string.punctuation]))
-RE_NUMBER = re.compile('\d+')
+RE_NUMBER = re.compile(r'\d+')
 
 
 
@@ -341,18 +341,17 @@ def desc_uniq_wc(train, test):
     def uniq_wc(line):
         word_list = _normalize_text_word_list(line)
         return len(set(word_list))
-    return (train['description'].map(str).map(uniq_wc),
-            test['description'].map(str).map(uniq_wc))
+    train_desc_uniq_wc = train['description'].map(str).map(uniq_wc)
+    # Set missing description length to 0. Otherwise they will be 1 (['nan']).
+    train_desc_uniq_wc[train['description'].isnull()] = 0
+
+    test_desc_uniq_wc = test['description'].map(str).map(uniq_wc)
+    test_desc_uniq_wc[test['description'].isnull()] = 0
+    return train_desc_uniq_wc, test_desc_uniq_wc
 
 # Ratio of unique words in description
 def desc_uniq_wc_ratio(train, test):
-    def uniq_wc_ratio(line):
-        word_list = _normalize_text_word_list(line)
-        if len(word_list) == 0:
-            return 0
-        return len(set(word_list)) / len(word_list)
-    return (train['description'].map(str).map(uniq_wc_ratio),
-            test['description'].map(str).map(uniq_wc_ratio))
+    return _ratio_helper(desc_uniq_wc, desc_len_norm, train, test, 0)
 
 # Utility functions
 
@@ -431,7 +430,7 @@ def _ratio(nominator, denominator, default_value=None, fillna_value=None):
         # The row where cond is True (i.e. denominator not zero) is NOT changed.
         result.where(denominator != 0, default_value, inplace=True)
     if fillna_value is not None:
-        result.where(result.notnull(), fillna_value)
+        result.where(result.notnull(), fillna_value, inplace=True)
     return result
 
 # f1 and f2 are functions that calculate feature series.

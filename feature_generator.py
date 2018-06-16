@@ -34,6 +34,10 @@ TEST_ACTIVE_LITE_PICKLE_PATH = PICKLE_FOLDER + 'df_test_active_lite'
 TARGET_COLUMN = 'deal_probability'
 TARGET_PATH = PICKLE_FOLDER + TARGET_COLUMN
 
+TRAIN_SIZE = 1503424
+TEST_SIZE = 508438
+
+
 # Generate pickle for train/test dataset, train target.
 def generate_raw_df_pickle():
     # train dataset
@@ -108,6 +112,9 @@ def generate_feature_pickle(name, train_df, test_df):
     if isinstance(train, pd.Series):
         train.rename(name, inplace=True)
         test.rename(name, inplace=True)
+    # Sanity check
+    assert(train.shape[0] == TRAIN_SIZE)
+    assert(test.shape[0] == TEST_SIZE)
 
     # Generates pickle.
     pickle_path = PICKLE_FOLDER + name

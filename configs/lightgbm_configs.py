@@ -1,10 +1,26 @@
+# Image feature will come after normal features
+# When changing feature list, also need to change 'categorial_feature' to
+# specify which columns are categorical.
+# IMPORTANT! Always put categorical features first in the feature list, as some
+# features contains more than one columns, it will be hard to figure out
+# categorical feature index if we mix them.
+
 from hyperopt import hp
 
 lightgbm_config_feature_list = [
-#   'activation_date',
+  # Categorical features:
   'activation_weekday',
   'category_name',
   'city',
+  'image_top_1',
+  'param_1',
+  'param_2',
+  'param_3',
+  'parent_category_name',
+  'region',
+  'user_id',
+  'user_type',
+  # Numerical and boolean features:
   'desc_exclam_count',
   'desc_len_norm',
   'desc_len_wc_norm_ratio',
@@ -20,26 +36,16 @@ lightgbm_config_feature_list = [
   'desc_wc_norm',
   'desc_wc_norm_ratio',
   'desc_wc_punc_ratio',
-  'description',
   'has_description',
   'has_image',
   'has_one_param',
   'has_price',
-#   'image',
-  'image_top_1',
-#   'item_id',
   'item_seq_number',
   'listings_per_city_date',
   'listings_per_user',
   'log_price',
-  'param_1',
-  'param_2',
-  'param_3',
-  'parent_category_name',
   'price',
   'price_city_date_mean_max',
-  'region',
-  'title',
   'title_exclam_count',
   'title_len',
   'title_len_wc_ratio',
@@ -53,8 +59,6 @@ lightgbm_config_feature_list = [
   'title_upper_count_ratio',
   'title_wc',
   'title_wc_punc_ratio',
-  'user_id',
-  'user_type',
   'city_date_price_mean_max_active',
   'parent_cat_price_mean_active',
   'parent_cat_price_median_active',
@@ -63,12 +67,12 @@ lightgbm_config_feature_list = [
 
 lightgbm_config = {
     'features': lightgbm_config_feature_list,
-    'image_feature_folders': ['image_features/ads_image_features']
+    'image_feature_folders': ['image_features/ads_image_features'],
     'folds':5,
     'model': 'lightgbm',
     'model_params': {
         'boosting_type': 'gbdt',
-        'categorical_feature': '0,1,2,3,4,5,6,7,10,11',
+        'categorical_feature': '0,1,2,3,4,5,6,7,8,9,10',
         'learning_rate': 0.15003406796297156,
         'max_bin': 110,
         'metric': 'mse',
@@ -83,13 +87,13 @@ lightgbm_config = {
     'tune_params': {
         'param_space': {
             'features': lightgbm_config_feature_list,
-            'image_feature_folders': ['image_features/ads_image_features']
+            'image_feature_folders': ['image_features/ads_image_features'],
             'model': 'lightgbm',
             'folds': 5,
             'model_params': {
                 'learning_rate': hp.loguniform('learning_rate', -2, 0),
                 'boosting_type': 'gbdt',
-                'categorical_feature': '0,1,2,3,4,5,6,7,10,11',
+                'categorical_feature': '0,1,2,22,27,28,29,30,33,47,48',
                 'objective': 'regression',
                 'metric': hp.choice('metric', ['mae', 'mse']),
                 'sub_feature': hp.uniform('sub_feature', 0.1, 0.5),
