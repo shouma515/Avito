@@ -54,7 +54,8 @@ class ProcessImageDoFn(beam.DoFn):
       self.missing_image_counter.inc()
       return
 
-    image_uri = "gs://avito-kaggle/train_jpg/%s.jpg" %image_id
+    # image_uri = "gs://avito-kaggle/train_jpg/%s.jpg" %image_id
+    image_uri = "gs://avito-kaggle/test_jpg/%s.jpg" %image_id
 
     try:
       with file_io.FileIO(image_uri, mode='rb') as f:

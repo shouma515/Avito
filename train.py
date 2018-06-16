@@ -39,7 +39,7 @@ SUBMISSION_RECORD_FOLDER = RECORD_FOLDER + 'sub/'
 #   2. Order of training data should not be changed if you want to
 #      compare result between trainings, as cross validation depends
 #      on that.
-def prepare_data(feature_names, mage_feature_folders=[], test=False):
+def prepare_data(feature_names, image_feature_folders=[], test=False):
     DATA_LENTH = TEST_SIZE if test else TRAIN_SIZE
 
     features = []
@@ -62,7 +62,7 @@ def prepare_data(feature_names, mage_feature_folders=[], test=False):
         features.append(feature)
 
     # Add image features.
-    if len(mage_feature_folders) > 0:
+    if len(image_feature_folders) > 0:
         # load item id to join image features.
         item_id_pickle_path = PICKLE_FOLDER + 'item_id'
         if test:
@@ -72,7 +72,7 @@ def prepare_data(feature_names, mage_feature_folders=[], test=False):
         item_id = pd.read_pickle(item_id_pickle_path).to_frame()
         # Sanity check
         assert(item_id.shape[0] == DATA_LENTH)
-        image_features = load_image_features(mage_feature_folders)
+        image_features = load_image_features(image_feature_folders)
         image_features = item_id.merge(
             image_features, how='left', on='item_id', validate='1:1')
         image_features.drop('item_id', axis=1, inplace=True)
@@ -224,14 +224,14 @@ def train(config, record=True):
 # Predicts on test data and generates submission.
 def predict(config, cv=True):
     feature_names = config['features']
-    mage_feature_folders = config['mage_feature_folders']
+    image_feature_folders = config['image_feature_folders']
     model_name = config['model']
     model_params = config['model_params']
 
     # Prepares train data.
     X_train, y_train = prepare_data(
-        feature_names, mage_feature_folders, test=False)
-    X_test, _ = prepare_data(feature_names, mage_feature_folders, test=True)
+        feature_names, image_feature_folders, test=False)
+    X_test, _ = prepare_data(feature_names, image_feature_folders, test=True)
 
     # Timestamp for naming of the submission file and the cv record file.
     sub_timestamp = datetime.datetime.now().strftime("%m-%d_%H:%M:%S")
