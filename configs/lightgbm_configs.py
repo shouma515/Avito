@@ -88,7 +88,7 @@ lightgbm_config_feature_list = [
   'parent_cat_price_mean_active',
   'parent_cat_price_median_active',
   'parent_cat_price_norm_active',
-  'parent_cat_price_std_active',  
+  'parent_cat_price_std_active',
 ]
 
 lightgbm_config = {
@@ -133,7 +133,7 @@ lightgbm_config = {
             'model': 'lightgbm',
             'folds': 5,
             'model_params': {
-                'max_depth': hp.choice('num_leaves', [3, 10, 20, 50]),
+                'max_depth': hp.choice('max_depth', [3, 10, 20, 50]),
                 'min_hessian': hp.loguniform('min_hessian', -3, 1),
                 'bagging_fraction': hp.uniform('bagging_fraction', 0.3, 0.9),
                 'bagging_freq': hp.choice('bagging_freq', [0, 10, 50, 100]),
@@ -147,16 +147,16 @@ lightgbm_config = {
                 'categorical_feature': '0,1,2,3,4,5,6,7,8,9,10',
                 'objective': 'regression',
                 # 'metric': hp.choice('metric', ['mae', 'mse']),
-                'metric': 'rmse',               
+                'metric': 'rmse',
                 'num_leaves': hp.choice('num_leaves', [10,20,50,100,300]),
                 'min_data': hp.choice('min_data', [100, 300, 1000, 3000, 10000]),
                 'num_boost_round': hp.choice('num_boost_round', [300, 500, 1000]),
-                
+
                 # 'bagging_fraction': hp.uniform('bagging_fraction', 0.5, 1),
                 # 'bagging_freq': hp.choice('bagging_freq', list(range(0, 100, 10))),
                 'verbose': -1
             },
         },
-        'max_evals': 2
+        'max_evals': 70
     }
 }
