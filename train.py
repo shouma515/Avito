@@ -11,6 +11,7 @@ import json
 import math
 import os
 import pickle
+import random
 import time
 from optparse import OptionParser
 
@@ -72,7 +73,7 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
         item_id = pd.read_pickle(item_id_pickle_path).to_frame()
         # Sanity check
         assert(item_id.shape[0] == DATA_LENTH)
-        image_features = load_image_features(image_feature_folders)
+        image_features = load_image_features(image_feature_folders, test)
         image_features = item_id.merge(
             image_features, how='left', on='item_id', validate='1:1')
         image_features.drop('item_id', axis=1, inplace=True)
@@ -105,28 +106,33 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
 
 # Each set of image features is in one folder. And we load features folder by
 # folder and join them with item_id.
-def load_image_features(image_feature_folders):
+def load_image_features(image_feature_folders, test):
     assert(len(image_feature_folders) > 0)
     folder0 = image_feature_folders[0]
-    image_features = load_image_feature(folder0)
+    image_features = load_image_feature(folder0, test)
     for folder in image_feature_folders[1:]:
-        feature = load_image_feature(folder)
+        feature = load_image_feature(folder, test)
         image_features.merge(feature, how='left', on='item_id', validate='1:1')
 
     return image_features
 
 # Each image feature folder should contain a schema file(with names of the
-# columns in the feature file) and a image_feature.csv file. The features need
-# to have item_id and image_id as primay key.
-def load_image_feature(folder):
+# columns in the feature files) and a pair of
+# image_feature.csv, image_feature_test.csv file.
+# The features need to have item_id and image_id as primay key.
+def load_image_feature(folder, test):
     # # debug
     # print('image feature', folder)
 
     with open(folder + '/schema', 'r') as schema_in:
             schema = schema_in.read().strip()
     schema = schema.split(',')
-    image_feature = pd.read_csv(
-        folder + '/image_feature.csv', header=None, names=schema)
+
+    image_feature_path = folder + '/image_feature.csv'
+    if test:
+        image_feature_path = folder + '/image_feature_test.csv'
+    image_feature = pd.read_csv(image_feature_path, header=None, names=schema)
+    
     # image ids is used debug, we don't use them in training.
     image_feature.drop('image', axis=1, inplace=True)
     return image_feature
@@ -147,7 +153,8 @@ def record_cv(
     timestamp=datetime.datetime.now().strftime("%m-%d_%H:%M:%S")):
     # Remove tune_params from config, as it is not serializable, and we do
     # not need to record it.
-    config.pop('tune_params')
+    if 'tune_params' in config:
+        config.pop('tune_params')
     record_dict = {
         'config': config,
         'train_errors': train_errors,
@@ -165,6 +172,9 @@ def record_cv(
 
 # Returns two array containing validation and train errors of each fold.
 def cross_validate(config, X, y):
+    return cross_validate_strategy_1(config, X, y, 0.25)
+
+def cross_validate_strategy_0(config, X, y):
     model_name = config['model']
     model_params = config['model_params']
     folds = config['folds']
@@ -195,6 +205,65 @@ def cross_validate(config, X, y):
         print('-----------------------------------------')
 
     print('\nAvg validation error: ', np.mean(val_errors))
+    return val_errors, train_errors
+
+# Use 25% data to form cv set. Thus, if 5 folds, in every fold, 25/5 = 5%
+# will be used as validate, other 95% will be used for train. 
+def cross_validate_strategy_1(config, X, y, cv_percent):
+    model_name = config['model']
+    model_params = config['model_params']
+    folds = config['folds']
+
+    # Split a part of data to form cv set, other data will be used in all
+    # trains.
+    total = len(X)
+    idx = list(range(total))
+    random.seed(42)
+    random.shuffle(idx)
+
+    cv_set_size = int(total * cv_percent)
+    cv_set_idx = idx[:cv_set_size]
+    X_cv_set, y_cv_set = X.iloc[cv_set_idx], y.iloc[cv_set_idx]
+
+    other_idx = idx[cv_set_size:]
+    X_other, y_other = X.iloc[other_idx], y.iloc[other_idx]
+
+    # Cross validation
+    kf = KFold(n_splits=folds, shuffle=True, random_state=42)
+
+    train_errors = []
+    val_errors = []
+    for i, (train_index, val_index) in enumerate(kf.split(X_cv_set, y_cv_set)):
+        print('Fold ', i)
+
+        X_train, y_train = X_cv_set.iloc[train_index], y_cv_set.iloc[train_index]
+        X_train = pd.concat([X_train, X_other])
+        y_train = pd.concat([y_train, y_other])
+        X_val, y_val = X_cv_set.iloc[val_index], y_cv_set.iloc[val_index]
+        # debug info
+        print(X_train.shape)
+        print(y_train.shape)
+        print(X_val.shape)
+        print(y_val.shape)
+
+        print('training...')
+        model = get_model(model_name, model_params)
+        model.fit(X_train, y_train)
+        train_rmse = math.sqrt(
+            mean_squared_error(y_train, model.predict(X_train)))
+        print('training error: ', train_rmse)
+        train_errors.append(train_rmse)
+
+        print('validating...')
+        rmse = math.sqrt(mean_squared_error(y_val, model.predict(X_val)))
+        print('validation error: ', rmse)
+        val_errors.append(rmse)
+
+        print('-----------------------------------------')
+
+    print('\nAvg train error: ', np.mean(train_errors))
+    print('Avg validation error: ', np.mean(val_errors))
+    print('----------------------------------------\n')
     return val_errors, train_errors
 
 
