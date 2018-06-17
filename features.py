@@ -87,20 +87,6 @@ def activation_weekday(train, test):
 
 # Generated fields
 
-# Counts
-# Number of listings per column entry. Calculated with both train and test data.
-# Number of listings per user_id.
-def listings_per_user(train, test):
-    return _counts(train, test, 'user_id')
-
-def listings_per_city_date(train, test):
-    return _multi_counts(train, test, ['city', 'activation_date'])
-
-# Aggregation over some dimensions
-def price_city_date_mean_max(train, test):
-    return _aggregate(
-        train, test, ['city', 'activation_date'], ['price'], ['mean', 'max'])
-
 # Boolean features
 # Actually this can be implied by image_top_1 != nan
 def has_image(train, test):
@@ -353,6 +339,36 @@ def desc_uniq_wc(train, test):
 def desc_uniq_wc_ratio(train, test):
     return _ratio_helper(desc_uniq_wc, desc_len_norm, train, test, 0)
 
+
+# Item seq number
+def item_seq_number_bucket(train, test):
+    data = train['item_seq_number'].append(test['item_seq_number'])
+    buckets = pd.cut(data, [0, 1, 2, 3, 4, 10, 14, 20, 30, 40, 50, 60, 70, 80, 90, 120, 200, 300, 400, 500, 600, 700, 1700, data.max()])
+    codes = buckets.astype('category').cat.codes
+    # return train_code, test_code in pd.Series format.
+    return pd.Series(codes[ : train.shape[0]]), pd.Series(codes[train.shape[0] :])
+
+def item_seq_number_is_one(train, test):
+    return train['item_seq_number'] == 1, test['item_seq_number'] == 1
+
+def item_seq_number_below_five(train, test):
+    return train['item_seq_number'] < 5, test['item_seq_number'] < 5
+
+def item_seq_number_below_ten(train, test):
+    return train['item_seq_number'] < 10, test['item_seq_number'] < 10
+
+def item_seq_number_below_twenty(train, test):
+    return train['item_seq_number'] < 20, test['item_seq_number'] < 20
+
+def item_seq_number_below_thirty(train, test):
+    return train['item_seq_number'] < 30, test['item_seq_number'] < 30
+
+def item_seq_number_below_fifty(train, test):
+    return train['item_seq_number'] < 50, test['item_seq_number'] < 50
+
+def item_seq_number_below_hundred(train, test):
+    return train['item_seq_number'] < 100, test['item_seq_number'] < 100
+    
 # Utility functions
 
 # Encode data from 0 to N, nan will be encoded as -1. If nan need to

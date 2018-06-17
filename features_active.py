@@ -8,8 +8,40 @@
 import numpy as np
 import pandas as pd
 
+# Counts
+# Number of listings per column entry. Calculated with both train and test data.
+# Number of listings per user_id.
+def listings_per_user(train, test, train_active, test_active):
+    return _counts(train, test, train_active, test_active, 'user_id')
 
-# Global variables
+def listings_per_user_cat(train, test, train_active, test_active):
+    return _multi_counts(train, test, train_active, test_active, ['user_id', 'category_name'])
+
+def listings_per_user_cat_ratio(train, test, train_active, test_active):
+    return _ratio_helper(
+        listings_per_user_cat, listings_per_user,
+        train, test, train_active, test_active,
+        0)
+
+def listings_per_user_pcat(train, test, train_active, test_active):
+    return _multi_counts(train, test, train_active, test_active, ['user_id', 'parent_category_name'])
+
+def listings_per_user_pcat_ratio(train, test, train_active, test_active):
+    return _ratio_helper(
+        listings_per_user_pcat, listings_per_user,
+        train, test, train_active, test_active,
+        0)
+
+def listings_per_city_date(train, test, train_active, test_active):
+    return _multi_counts(train, test, train_active, test_active, ['city', 'activation_date'])
+
+def listings_per_cat_date(train, test, train_active, test_active):
+    return _multi_counts(train, test, train_active, test_active, ['category_name', 'activation_date'])
+
+def listings_per_cat_city_date(train, test, train_active, test_active):
+    return _multi_counts(train, test, train_active, test_active, ['category_name', 'city', 'activation_date'])
+
+# Price
 def city_date_price_mean_max_active(train, test, train_active, test_active):
     return _aggregate(
         train, test, train_active, test_active, ['city', 'activation_date'], ['price'], ['mean', 'max'])
@@ -29,6 +61,113 @@ def parent_cat_price_std_active(train, test, train_active, test_active):
     return _retrieve_first_series(*_aggregate(
         train, test, train_active, test_active, ['parent_category_name'], ['price'], ['std']))
 
+# Normalized price of an item within its parent category
+def parent_cat_price_norm_active(train, test, train_active, test_active):
+    train_mean, test_mean = parent_cat_price_mean_active(train, test, train_active, test_active)
+    train_std, test_std = parent_cat_price_std_active(train, test, train_active, test_active)
+    train_norm = _ratio(train['price'] - train_mean, train_std, 0)
+    test_norm = _ratio(test['price'] - test_mean, test_std, 0)
+    return train_norm, test_norm
+
+# Mean price of a category
+def cat_price_mean_active(train, test, train_active, test_active):
+    return _retrieve_first_series(*_aggregate(
+        train, test, train_active, test_active, ['category_name'], ['price'], ['mean']))
+
+# Median price of a category
+def cat_price_median_active(train, test, train_active, test_active):
+    return _retrieve_first_series(*_aggregate(
+        train, test, train_active, test_active, ['category_name'], ['price'], ['median']))
+
+# Std of price of a category
+def cat_price_std_active(train, test, train_active, test_active):
+    return _retrieve_first_series(*_aggregate(
+        train, test, train_active, test_active, ['category_name'], ['price'], ['std']))
+
+# Normalized price of an item within its category
+def cat_price_norm_active(train, test, train_active, test_active):
+    train_mean, test_mean = cat_price_mean_active(train, test, train_active, test_active)
+    train_std, test_std = cat_price_std_active(train, test, train_active, test_active)
+    train_norm = _ratio(train['price'] - train_mean, train_std, 0)
+    test_norm = _ratio(test['price'] - test_mean, test_std, 0)
+    return train_norm, test_norm
+
+# Mean price of a category and city
+def cat_city_price_mean_active(train, test, train_active, test_active):
+    return _retrieve_first_series(*_aggregate(
+        train, test, train_active, test_active, ['category_name', 'region', 'city'], ['price'], ['mean']))
+
+# Median price of a category and city
+def cat_city_price_median_active(train, test, train_active, test_active):
+    return _retrieve_first_series(*_aggregate(
+        train, test, train_active, test_active, ['category_name', 'region', 'city'], ['price'], ['median']))
+
+# Std of price of a category and city
+def cat_city_price_std_active(train, test, train_active, test_active):
+    return _retrieve_first_series(*_aggregate(
+        train, test, train_active, test_active, ['category_name', 'region', 'city'], ['price'], ['std']))
+
+# Normalized price of an item within its category and city
+def cat_city_price_norm_active(train, test, train_active, test_active):
+    train_mean, test_mean = cat_city_price_mean_active(train, test, train_active, test_active)
+    train_std, test_std = cat_city_price_std_active(train, test, train_active, test_active)
+    train_norm = _ratio(train['price'] - train_mean, train_std, 0)
+    test_norm = _ratio(test['price'] - test_mean, test_std, 0)
+    return train_norm, test_norm
+
+# Mean price of a category and city
+def cat_date_price_mean_active(train, test, train_active, test_active):
+    return _retrieve_first_series(*_aggregate(
+        train, test, train_active, test_active, ['category_name', 'activation_date'], ['price'], ['mean']))
+
+# Median price of a category and city
+def cat_date_price_median_active(train, test, train_active, test_active):
+    return _retrieve_first_series(*_aggregate(
+        train, test, train_active, test_active, ['category_name', 'activation_date'], ['price'], ['median']))
+
+# Std of price of a category and city
+def cat_date_price_std_active(train, test, train_active, test_active):
+    return _retrieve_first_series(*_aggregate(
+        train, test, train_active, test_active, ['category_name', 'activation_date'], ['price'], ['std']))
+
+# Normalized price of an item within its category and city
+def cat_date_price_norm_active(train, test, train_active, test_active):
+    train_mean, test_mean = cat_date_price_mean_active(train, test, train_active, test_active)
+    train_std, test_std = cat_date_price_std_active(train, test, train_active, test_active)
+    train_norm = _ratio(train['price'] - train_mean, train_std, 0)
+    test_norm = _ratio(test['price'] - test_mean, test_std, 0)
+    return train_norm, test_norm
+
+# Number of listings per entry in the given column.
+# This is treated as an attribute of the column, calculated with both train and test data.
+def _counts(train, test, train_active, test_active, col):
+    cols = ['item_id', col]
+    data = pd.concat([train[cols], test[cols], train_active[cols], test_active[cols]])
+    # There are duplicate item_ids in train_active and test_active.
+    data.drop_duplicates('item_id', inplace=True)
+    # Drop item_id column as it is not used in grouping
+    data = data[col]
+    count_dict = data.value_counts().to_dict()
+    return train[col].map(count_dict), test[col].map(count_dict)
+
+# Number of listings per tuple of the given columns
+def _multi_counts(train, test, train_active, test_active, cols):
+    cols_id = ['item_id', *cols]
+    data = pd.concat([train[cols_id], test[cols_id], train_active[cols_id], test_active[cols_id]])
+    # There are duplicate item_ids in train_active and test_active.
+    data.drop_duplicates('item_id', inplace=True)
+    count_dict = data.groupby(cols).count()
+
+    train_result = train[cols].merge(count_dict, how='left', left_on=cols, right_index=True)
+    train_result = train_result['item_id'].rename('+'.join(cols) + '-counts', inplace=True)
+    train_result.fillna(0, inplace=True)
+    train_result = train_result.astype(int, copy=False)
+
+    test_result = test[cols].merge(count_dict, how='left', left_on=cols, right_index=True)
+    test_result = test_result['item_id'].rename('+'.join(cols) + '-counts', inplace=True)
+    test_result.fillna(0, inplace=True)
+    test_result = test_result.astype(int, copy=False)
+    return train_result, test_result
 
 # Utility functions
 def _aggregate(

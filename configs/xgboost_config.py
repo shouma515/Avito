@@ -25,8 +25,7 @@ feature_list = [
 ]
 xgboost_config = {
     'features': feature_list,
-    # 'image_feature_folders': ['image_features/ads_image_features'],
-    'image_feature_folders': [],
+    'image_feature_folders': ['ads_image_features'],
     'folds':5,
     'model': 'xgboost',
     'model_params': {
