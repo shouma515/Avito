@@ -92,24 +92,31 @@ lightgbm_config_feature_list = [
 ]
 
 lightgbm_config = {
-    'features': lightgbm_config_feature_list,
-    'image_feature_folders': ['image_features/ads_image_features'],
-    'folds':5,
-    'model': 'lightgbm',
-    'model_params': {
-        'boosting_type':'gbdt',
-        'categorical_feature': '0,1,2,3,4,5,6,7,8,9,10',
-        'learning_rate': 0.08,
-        'max_bin': 110,
-        'metric': 'mse',
-        'min_data': 250,
-        'min_hessian': 0.1,
-        'num_boost_round': 10,
-        'num_leaves': 75,
-        'objective': 'regression',
-        'sub_feature': 0.8,
-        'verbose': -1
-    },
+
+        'features': lightgbm_config_feature_list,
+        'folds': 5,
+        'image_feature_folders': ['image_features/ads_image_features'],
+        'model': 'lightgbm',
+        'model_params': {
+            'bagging_fraction': 0.7178900085983999,
+            'bagging_freq': 10,
+            'boosting_type': 'gbdt',
+            'categorical_feature': '0,1,2,3,4,5,6,7,8,9,10',
+            'learning_rate': 0.07803127311043216,
+            'max_bin': 350,
+            'max_depth': 50,
+            'metric': 'rmse',
+            'min_data': 300,
+            'min_data_in_bin': 100,
+            'min_hessian': 0.1087156514525829,
+            'num_boost_round': 500,
+            'num_leaves': 300,
+            'objective': 'regression',
+            'sub_feature': 0.33800619525812764,
+            'top_k': 100,
+            'verbose': -1
+        },
+
     # 'features': lightgbm_config_feature_list,
     # 'image_feature_folders': ['image_features/ads_image_features'],
     # 'folds':2,
@@ -157,6 +164,6 @@ lightgbm_config = {
                 'verbose': -1
             },
         },
-        'max_evals': 70
+        'max_evals': 80
     }
 }
