@@ -146,30 +146,27 @@ lightgbm_config = {
             'model': 'lightgbm',
             'folds': 5,
             'model_params': {
-                'max_depth': hp.choice('max_depth', [3, 10, 20, 50]),
+                'max_depth': hp.choice('max_depth', [5, 10, 20]),
                 'min_hessian': hp.loguniform('min_hessian', -3, 1),
                 'bagging_fraction': hp.uniform('bagging_fraction', 0.3, 0.9),
                 'bagging_freq': hp.choice('bagging_freq', [0, 10, 50, 100]),
-                'sub_feature': hp.uniform('sub_feature', 0.1, 1),
+                'sub_feature': hp.uniform('sub_feature', 0.1, 0.5),
                 'top_k':  hp.choice('top_k', [20,50,100]),
-                'max_bin': hp.choice('max_bin', [50, 150, 255, 350, 500]),
-                'min_data_in_bin': hp.choice('min_data_in_bin', [3, 10, 30, 100, 300]),
+                'max_bin': hp.choice('max_bin', [255, 350, 500]),
+                'min_data_in_bin': hp.choice('min_data_in_bin', [30, 100, 300]),
 
-                'learning_rate': hp.loguniform('learning_rate', -3, 0),
+                'learning_rate': hp.loguniform('learning_rate', -2, 0),
                 'boosting_type': 'gbdt',
                 'categorical_feature': '0,1,2,3,4,5,6,7,8,9,10',
                 'objective': 'regression',
                 # 'metric': hp.choice('metric', ['mae', 'mse']),
                 'metric': 'rmse',
-                'num_leaves': hp.choice('num_leaves', [10,20,50,100,300]),
-                'min_data': hp.choice('min_data', [100, 300, 1000, 3000, 10000]),
-                'num_boost_round': hp.choice('num_boost_round', [300, 500, 1000]),
-
-                # 'bagging_fraction': hp.uniform('bagging_fraction', 0.5, 1),
-                # 'bagging_freq': hp.choice('bagging_freq', list(range(0, 100, 10))),
+                'num_leaves': hp.choice('num_leaves', [100, 200, 300]),
+                'min_data': hp.choice('min_data', [300, 500, 750, 1000]),
+                'num_boost_round': hp.choice('num_boost_round', [500, 750, 1000]),
                 'verbose': -1
             },
         },
-        'max_evals': 80
+        'max_evals': 50
     }
 }
