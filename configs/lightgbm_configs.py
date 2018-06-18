@@ -89,6 +89,8 @@ lightgbm_config_feature_list = [
   'parent_cat_price_median_active',
   'parent_cat_price_norm_active',
   'parent_cat_price_std_active',
+  'bow_desc_1',
+  'bow_title_1'
 ]
 
 lightgbm_config = {
@@ -104,16 +106,20 @@ lightgbm_config = {
             'categorical_feature': '0,1,2,3,4,5,6,7,8,9,10',
             'learning_rate': 0.07803127311043216,
             'max_bin': 350,
-            'max_depth': 50,
+            'max_depth': 10,
+            # 'max_depth': 50,
             'metric': 'rmse',
             'min_data': 300,
             'min_data_in_bin': 100,
             'min_hessian': 0.1087156514525829,
             'num_boost_round': 500,
-            'num_leaves': 300,
+            'num_leaves': 150,
+            # 'num_leaves': 300,
             'objective': 'regression',
-            'sub_feature': 0.33800619525812764,
-            'top_k': 100,
+            'sub_feature': 0.2,
+            # 'sub_feature': 0.33800619525812764,
+            'top_k': 50,
+            # 'top_k': 100,
             'verbose': -1
         },
 

@@ -11,6 +11,7 @@ import re
 import string
 from sklearn.preprocessing import LabelEncoder
 from nltk.corpus import stopwords
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 
 
 # Global variables
@@ -368,7 +369,29 @@ def item_seq_number_below_fifty(train, test):
 
 def item_seq_number_below_hundred(train, test):
     return train['item_seq_number'] < 100, test['item_seq_number'] < 100
-    
+
+# BOW features
+def bow_title_1(train, test):
+    count_vectorizer_title = CountVectorizer(
+        stop_words=stopwords.words('russian'), lowercase=True,
+        max_df=0.7, max_features=150)
+    title_counts = count_vectorizer_title.fit_transform(train['title'].append(test['title']))
+
+    return (pd.DataFrame(title_counts[:len(train)].todense()),
+            pd.DataFrame(title_counts[len(train):].todense()))
+
+def bow_desc_1(train, test):
+    count_vectorizer_desc = TfidfVectorizer(
+        lowercase=True, ngram_range=(1, 2),
+        max_features=150)
+    train_d = train['description'].astype(str).map(_normalize_text_remove_digits)
+    test_d = test['description'].astype(str).map(_normalize_text_remove_digits)
+
+    desc_counts = count_vectorizer_desc.fit_transform(train_d.append(test_d))
+
+    return (pd.DataFrame(desc_counts[:len(train)].todense()),
+            pd.DataFrame(desc_counts[len(train):].todense()))
+
 # Utility functions
 
 # Encode data from 0 to N, nan will be encoded as -1. If nan need to
@@ -399,7 +422,7 @@ def _multi_counts(train, test, cols):
 
 # Aggregates on the metrics with the agg_funcs over the dimensions.
 # dimensions, metrics and agg_funcs are all string lists.
-# Always returns a Dataframe
+# Always returns a DataFrame
 def _aggregate(train, test, dimensions, metrics, agg_funcs):
     cols = dimensions + metrics
     data = train[cols].append(test[cols])
@@ -429,12 +452,19 @@ def _normalize_text(text):
     text = text.strip().split(' ')
     return u' '.join(x for x in text if len(x) > 1 and x not in STOPWORDS)
 
+def _normalize_text_remove_digits(text):
+    text = text.lower().strip()
+    for s in string.punctuation:
+        text = text.replace(s, ' ')
+    text = text.strip().split(' ')
+    return u' '.join(x for x in text if len(x) > 1 and x not in STOPWORDS)
+
 def _normalize_text_word_list(text):
     text = text.lower().strip()
     for s in string.punctuation:
         text = text.replace(s, ' ')
     text = text.strip().split(' ')
-    return [x for x in text if len(x) > 1 and x not in STOPWORDS]
+    return [x for x in text if len(x) > 1 and (not x.isdigit()) and (x not in STOPWORDS)]
 
 # norminator and denominator have to be pandas series of same length.
 # when present, default value is used when denominator is zero. (else, result

@@ -11,6 +11,8 @@ import features_active
 feature_map = {
   'activation_date': features.activation_date,
   'activation_weekday': features.activation_weekday,
+  'bow_desc_1': features.bow_desc_1,
+  'bow_title_1': features.bow_title_1,
   'category_name': features.category_name,
   'city': features.city,
   'desc_exclam_count': features.desc_exclam_count,

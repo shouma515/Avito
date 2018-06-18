@@ -31,6 +31,7 @@ SUBMISSION_FOLDER = 'submissions/'
 RECORD_FOLDER = 'records/'
 CV_RECORD_FOLDER = RECORD_FOLDER + 'cv/'
 SUBMISSION_RECORD_FOLDER = RECORD_FOLDER + 'sub/'
+MODEL_PICKLE_FOLDER = RECORD_FOLDER + 'model/'
 
 
 # Prepares train/test data. Target column will be returned when get train data;
@@ -336,6 +337,10 @@ def predict(config, cv=True):
 
     if not os.path.exists(SUBMISSION_FOLDER):
         os.makedirs(SUBMISSION_FOLDER)
+    
+    if not os.path.exists(MODEL_PICKLE_FOLDER):
+        os.makedirs(MODEL_PICKLE_FOLDER)
+
     # Generates submission csv.
     submission.to_csv(
         '%s%s_%s.csv' %(SUBMISSION_FOLDER, config['name'], sub_timestamp),
@@ -351,6 +356,12 @@ def predict(config, cv=True):
             SUBMISSION_RECORD_FOLDER, config['name'], sub_timestamp),
         'wb')
     pickle.dump(submission_history, sub_history_file)
+
+    model_file = open(
+        '%s%s_%s' %(
+            MODEL_PICKLE_FOLDER, config['name'], sub_timestamp),
+        'wb')
+    pickle.dump(model, model_file)
     # TODO: use kaggle cmd line api to submit and get result.
     # TODO: centralize records, now we have cv records (in json) and
     #       submission history (in pickle).
