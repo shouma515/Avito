@@ -167,6 +167,6 @@ lightgbm_config = {
                 'verbose': -1
             },
         },
-        'max_evals': 50
+        'max_evals': 35
     }
 }
