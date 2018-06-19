@@ -26,10 +26,11 @@ def tune_single_model(parameter_space, config_name, max_evals, trials=None):
     # Prepare train data.
     X, y = prepare_data(parameter_space['features'], parameter_space['image_feature_folders'], test=False)
     def train_wrapper(params):
-        cv_losses, _ = cross_validate(params, X, y)
+        cv_losses, cv_train_losses = cross_validate(params, X, y)
         # return an object to be recorded in hyperopt trials for future uses
         return {
             'loss': np.mean(cv_losses),
+            'train_loss': np.mean(cv_train_losses),
             'status': STATUS_OK,
             'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'params': params

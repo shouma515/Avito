@@ -103,7 +103,49 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
         print(y.name)
         print(y.shape)
 
+    X = reduce_mem_usage(X)
+
     return X, y
+
+
+def reduce_mem_usage(df):
+    """ iterate through all the columns of a dataframe and modify the data type
+        to reduce memory usage.
+    """
+    start_mem = df.memory_usage().sum() / 1024**2
+    print('Memory usage of dataframe is {:.2f} MB'.format(start_mem))
+
+    for col in df.columns:
+        col_type = df[col].dtype
+        print(col, ':', col_type)
+
+        if col_type != object:
+            c_min = df[col].min()
+            c_max = df[col].max()
+            if str(col_type)[:3] == 'int':
+                if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+                    df[col] = df[col].astype(np.int8)
+                elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+                    df[col] = df[col].astype(np.int16)
+                elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+                    df[col] = df[col].astype(np.int32)
+                elif c_min > np.iinfo(np.int64).min and c_max < np.iinfo(np.int64).max:
+                    df[col] = df[col].astype(np.int64)
+            else:
+                if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
+                    df[col] = df[col].astype(np.float16)
+                elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
+                    df[col] = df[col].astype(np.float32)
+                else:
+                    df[col] = df[col].astype(np.float64)
+        else:
+            print(col)
+
+    end_mem = df.memory_usage().sum() / 1024**2
+    print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
+    print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
+
+    return df
 
 # Each set of image features is in one folder. And we load features folder by
 # folder and join them with item_id.
@@ -133,7 +175,7 @@ def load_image_feature(folder, test):
     if test:
         image_feature_path = folder + '/image_feature_test.csv'
     image_feature = pd.read_csv(image_feature_path, header=None, names=schema)
-    
+
     # image ids is used debug, we don't use them in training.
     image_feature.drop('image', axis=1, inplace=True)
     return image_feature
@@ -209,7 +251,7 @@ def cross_validate_strategy_0(config, X, y):
     return val_errors, train_errors
 
 # Use 25% data to form cv set. Thus, if 5 folds, in every fold, 25/5 = 5%
-# will be used as validate, other 95% will be used for train. 
+# will be used as validate, other 95% will be used for train.
 def cross_validate_strategy_1(config, X, y, cv_percent):
     model_name = config['model']
     model_params = config['model_params']
@@ -275,6 +317,7 @@ def train(config, record=True):
     feature_names = config['features']
     image_feature_folders = config['image_feature_folders']
     X, y = prepare_data(feature_names, image_feature_folders, test=False)
+    return
     # For debug use only
     # print(X.columns)
     # print(X.describe(include='all'))
@@ -337,7 +380,7 @@ def predict(config, cv=True):
 
     if not os.path.exists(SUBMISSION_FOLDER):
         os.makedirs(SUBMISSION_FOLDER)
-    
+
     if not os.path.exists(MODEL_PICKLE_FOLDER):
         os.makedirs(MODEL_PICKLE_FOLDER)
 

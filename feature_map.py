@@ -73,6 +73,8 @@ feature_map = {
 }
 
 feature_map_active = {
+  'brutal_count': features_active.brutal_count,
+  'brutal_price_avg': features_active.brutal_price_avg,
   'cat_city_price_mean_active': features_active.cat_city_price_mean_active,
   'cat_city_price_median_active': features_active.cat_city_price_median_active,
   'cat_city_price_norm_active': features_active.cat_city_price_norm_active,

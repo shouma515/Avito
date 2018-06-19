@@ -7,6 +7,7 @@
 
 import numpy as np
 import pandas as pd
+import itertools
 
 # Counts
 # Number of listings per column entry. Calculated with both train and test data.
@@ -138,6 +139,83 @@ def cat_date_price_norm_active(train, test, train_active, test_active):
     test_norm = _ratio(test['price'] - test_mean, test_std, 0)
     return train_norm, test_norm
 
+# Price avg, std, norm over combinations of categorical dimensions,
+# up to 7 dimensions, and put restriction on some dimension of high cardinality
+# to avoid too sparse matrix
+def brutal_price_avg(train, test, train_active, test_active):
+    dimension_cols = [
+        "user_id", "region", "city", "parent_category_name", "category_name",
+        "param_1", "param_2", "param_3", "activation_date", "user_type"
+    ]
+    train_combs = []
+    test_combs = []
+    cols = ['item_id', 'price'] + dimension_cols
+    data_train = train[cols]
+    data_test = test[cols]
+    data = data_train.append([data_test, train_active[cols], test_active[cols]])
+    # There are duplicate item_ids in train_active and test_active.
+    data.drop_duplicates('item_id', inplace=True)
+    # Drop item_id column as it is not used in grouping
+    data.drop('item_id', axis=1, inplace=True)
+    for i in range(1, 5):
+        for dimension_comb in set(itertools.combinations(dimension_cols, i)):
+            dimension_comb = list(dimension_comb)
+            # user_id has extremly high cardinality
+            if ("user_id" in dimension_comb) and (i > 3):
+                continue
+            # parent_category_name will be redundant in this case.
+            if ("parent_category_name" in dimension_comb) and ("category_name" in dimension_comb):
+                continue
+            # region + city is the precise identifier for city.
+            if ("city" in dimension_comb) and ("region" not in dimension_comb):
+                continue
+            train_result, test_result = _aggregate_data(
+                train, test, data,
+                dimension_comb, ['price'], ['mean', 'std'])
+            # Column names:
+            mean_col = '+'.join(dimension_comb) + '-price-mean'
+            std_col = '+'.join(dimension_comb) + '-price-std'
+            train_mean, test_mean = train_result[mean_col], test_result[mean_col]
+            train_std, test_std = train_result[std_col], test_result[std_col]
+            # Add normalized price column
+            norm_col = '+'.join(dimension_comb) + '-price-norm'
+            train_result[norm_col] = _ratio(train['price'] - train_mean, train_std, 0)
+            test_result[norm_col] = _ratio(test['price'] - test_mean, test_std, 0)
+            train_combs.append(train_result)
+            test_combs.append(test_result)
+            print('--' + '+'.join(dimension_comb) + " generated")
+    return pd.concat(train_combs, axis=1), pd.concat(test_combs, axis=1)
+
+# Ads listing count over combinations of categorical dimensions,
+# up to 7 dimensions, and put restriction on some dimension of high cardinality
+# to avoid too sparse matrix
+def brutal_count(train, test, train_active, test_active):
+    cols = [
+        "user_id", "region", "city", "parent_category_name", "category_name",
+        "param_1", "param_2", "param_3", "activation_date", "user_type"
+    ]
+    train_combs = []
+    test_combs = []
+    for i in range(1, 5):
+        for dimension_comb in set(itertools.combinations(cols, i)):
+            dimension_comb = list(dimension_comb)
+             # user_id has extremly high cardinality
+            if ("user_id" in dimension_comb) and (i > 3):
+                continue
+            # parent_category_name will be redundant in this case.
+            if ("parent_category_name" in dimension_comb) and ("category_name" in dimension_comb):
+                continue
+            # region + city is the precise identifier for city.
+            if ("city" in dimension_comb) and ("region" not in dimension_comb):
+                continue
+            train_result, test_result = _multi_counts(
+                train, test, train_active, test_active, dimension_comb)
+            train_combs.append(train_result)
+            test_combs.append(test_result)
+            print('--' + '+'.join(dimension_comb) + " generated")
+    return pd.concat(train_combs, axis=1), pd.concat(test_combs, axis=1)
+
+
 # Number of listings per entry in the given column.
 # This is treated as an attribute of the column, calculated with both train and test data.
 def _counts(train, test, train_active, test_active, col):
@@ -169,6 +247,23 @@ def _multi_counts(train, test, train_active, test_active, cols):
     test_result = test_result.astype(int, copy=False)
     return train_result, test_result
 
+# Number of listings per tuple of the given columns
+def _multi_counts_data(data, cols):
+    cols_id = ['item_id', *cols]
+    data = data[cols_id]
+    count_dict = data.groupby(cols).count()
+
+    train_result = train[cols].merge(count_dict, how='left', left_on=cols, right_index=True)
+    train_result = train_result['item_id'].rename('+'.join(cols) + '-counts', inplace=True)
+    train_result.fillna(0, inplace=True)
+    train_result = train_result.astype(int, copy=False)
+
+    test_result = test[cols].merge(count_dict, how='left', left_on=cols, right_index=True)
+    test_result = test_result['item_id'].rename('+'.join(cols) + '-counts', inplace=True)
+    test_result.fillna(0, inplace=True)
+    test_result = test_result.astype(int, copy=False)
+    return train_result, test_result
+
 # Utility functions
 def _aggregate(
     train, test, train_active, test_active, dimensions, metrics, agg_funcs):
@@ -183,6 +278,27 @@ def _aggregate(
     # Drop item_id column as it is not used in grouping
     data.drop('item_id', axis=1, inplace=True)
     metrics_agg = data.groupby(dimensions).agg(agg_funcs)
+
+    # By default, merge makes a copy of the dataframe.
+    result_train = data_train[dimensions].merge(metrics_agg, how='left', left_on=dimensions, right_index=True)
+    result_train.drop(dimensions, axis=1, inplace=True)
+    # Renames the columns with dimensions to prevent conflict.
+    result_train.rename(lambda x: '+'.join(dimensions) + '-' + '-'.join(x), axis=1, inplace=True)
+
+    result_test = data_test[dimensions].merge(metrics_agg, how='left', left_on=dimensions, right_index=True)
+    result_test.drop(dimensions, axis=1, inplace=True)
+    # Renames the columns with dimensions to prevent conflict.
+    result_test.rename(lambda x: '+'.join(dimensions) + '-' + '-'.join(x), axis=1, inplace=True)
+
+    return result_train, result_test
+
+def _aggregate_data(train, test, data, dimensions, metrics, agg_funcs):
+    cols = dimensions + metrics
+    data = data[cols]
+    metrics_agg = data.groupby(dimensions).agg(agg_funcs)
+
+    data_train = train[cols]
+    data_test = test[cols]
 
     # By default, merge makes a copy of the dataframe.
     result_train = data_train[dimensions].merge(metrics_agg, how='left', left_on=dimensions, right_index=True)
