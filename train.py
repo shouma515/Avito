@@ -103,47 +103,49 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
         print(y.name)
         print(y.shape)
 
-    X = reduce_mem_usage(X)
+    # Memory usage
+    # X = reduce_mem_usage(X)
+    print('Memory usage of training data is {:.2f} MB'.format(X.memory_usage().sum() / 1024**2))
 
     return X, y
 
 
-def reduce_mem_usage(df):
-    """ iterate through all the columns of a dataframe and modify the data type
-        to reduce memory usage.
-    """
-    start_mem = df.memory_usage().sum() / 1024**2
-    print('Memory usage of dataframe is {:.2f} MB'.format(start_mem))
+# def reduce_mem_usage(df):
+#     """ iterate through all the columns of a dataframe and modify the data type
+#         to reduce memory usage.
+#     """
+#     start_mem = df.memory_usage().sum() / 1024**2
+#     print('Memory usage of dataframe is {:.2f} MB'.format(start_mem))
 
-    for col in df.columns:
-        col_type = df[col].dtype
+#     for col in df.columns:
+#         col_type = df[col].dtype
 
-        if col_type != object:
-            if col_type == 'bool' or col_type == 'int8' or col_type == 'int16':
-                continue
-            c_min = df[col].min()
-            c_max = df[col].max()
-            if str(col_type)[:3] == 'int':
-                if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
-                    df[col] = df[col].astype(np.int8)
-                elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
-                    df[col] = df[col].astype(np.int16)
-                elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
-                    df[col] = df[col].astype(np.int32)
-            else:
-                assert('float' in str(col_type))
-                if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
-                    df[col] = df[col].astype(np.float16)
-                elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
-                    df[col] = df[col].astype(np.float32)
-        else:
-            print(col, ':', col_type)
+#         if col_type != object:
+#             if col_type == 'bool' or col_type == 'int8' or col_type == 'int16':
+#                 continue
+#             c_min = df[col].min()
+#             c_max = df[col].max()
+#             if str(col_type)[:3] == 'int':
+#                 if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+#                     df[col] = df[col].astype(np.int8)
+#                 elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+#                     df[col] = df[col].astype(np.int16)
+#                 elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+#                     df[col] = df[col].astype(np.int32)
+#             else:
+#                 assert('float' in str(col_type))
+#                 if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
+#                     df[col] = df[col].astype(np.float16)
+#                 elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
+#                     df[col] = df[col].astype(np.float32)
+#         else:
+#             print(col, ':', col_type)
 
-    end_mem = df.memory_usage().sum() / 1024**2
-    print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
-    print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
+#     end_mem = df.memory_usage().sum() / 1024**2
+#     print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
+#     print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
 
-    return df
+#     return df
 
 # Each set of image features is in one folder. And we load features folder by
 # folder and join them with item_id.
@@ -180,8 +182,9 @@ def load_image_feature(folder, test):
 
 
 # Retrieves the model class from model map and creates an instance of it.
-def get_model(model_name, model_params):
-    return model_map[model_name](model_params=model_params)
+def get_model(model_name, model_params, data_params=None):
+    return model_map[model_name](
+        model_params=model_params, data_params=data_params)
 
 
 # TODO: figure out query json file for analysis.
@@ -231,7 +234,7 @@ def cross_validate_strategy_0(config, X, y):
         X_val,y_val = X.iloc[val_index], y.iloc[val_index]
 
         print('training...')
-        model = get_model(model_name, model_params)
+        model = get_model(model_name, model_params, {'fold': i})
         model.fit(X_train, y_train)
         train_rmse = math.sqrt(
             mean_squared_error(y_train, model.predict(X_train)))
@@ -288,7 +291,7 @@ def cross_validate_strategy_1(config, X, y, cv_percent):
         print(y_val.shape)
 
         print('training...')
-        model = get_model(model_name, model_params)
+        model = get_model(model_name, model_params, {'fold': i})
         model.fit(X_train, y_train)
         train_rmse = math.sqrt(
             mean_squared_error(y_train, model.predict(X_train)))

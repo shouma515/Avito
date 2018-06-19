@@ -31,6 +31,7 @@ feature_map = {
   'desc_wc_norm_ratio': features.desc_wc_norm_ratio,
   'desc_wc_punc_ratio': features.desc_wc_punc_ratio,
   'description': features.description,
+  'embedding': features.embedding,
   'has_description': features.has_description,
   'has_image': features.has_image,
   'has_one_param': features.has_one_param,
@@ -73,8 +74,8 @@ feature_map = {
 }
 
 feature_map_active = {
-  'brutal_count': features_active.brutal_count,
-  'brutal_price_avg': features_active.brutal_price_avg,
+  'brutal_count_1_3': features_active.brutal_count_1_3,
+  'brutal_price_avg_1_3': features_active.brutal_price_avg_1_3,
   'cat_city_price_mean_active': features_active.cat_city_price_mean_active,
   'cat_city_price_median_active': features_active.cat_city_price_median_active,
   'cat_city_price_norm_active': features_active.cat_city_price_norm_active,

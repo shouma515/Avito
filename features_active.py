@@ -142,7 +142,7 @@ def cat_date_price_norm_active(train, test, train_active, test_active):
 # Price avg, std, norm over combinations of categorical dimensions,
 # up to 7 dimensions, and put restriction on some dimension of high cardinality
 # to avoid too sparse matrix
-def brutal_price_avg(train, test, train_active, test_active):
+def brutal_price_avg_1_3(train, test, train_active, test_active):
     dimension_cols = [
         "user_id", "region", "city", "parent_category_name", "category_name",
         "param_1", "param_2", "param_3", "activation_date", "user_type"
@@ -157,11 +157,17 @@ def brutal_price_avg(train, test, train_active, test_active):
     data.drop_duplicates('item_id', inplace=True)
     # Drop item_id column as it is not used in grouping
     data.drop('item_id', axis=1, inplace=True)
-    for i in range(1, 5):
+    for i in range(1, 3):
         for dimension_comb in set(itertools.combinations(dimension_cols, i)):
             dimension_comb = list(dimension_comb)
             # user_id has extremly high cardinality
-            if ("user_id" in dimension_comb) and (i > 3):
+            if ("user_id" in dimension_comb) and (i > 2):
+                continue
+            if ("user_id" in dimension_comb) and ("user_type" in dimension_comb):
+                continue
+            if ("param_1" in dimension_comb) and (("param_2" in dimension_comb) or ("param_3" in dimension_comb)):
+                continue
+            if ("param_2" in dimension_comb) and ("param_3" in dimension_comb):
                 continue
             # parent_category_name will be redundant in this case.
             if ("parent_category_name" in dimension_comb) and ("category_name" in dimension_comb):
@@ -189,18 +195,30 @@ def brutal_price_avg(train, test, train_active, test_active):
 # Ads listing count over combinations of categorical dimensions,
 # up to 7 dimensions, and put restriction on some dimension of high cardinality
 # to avoid too sparse matrix
-def brutal_count(train, test, train_active, test_active):
-    cols = [
+def brutal_count_1_3(train, test, train_active, test_active):
+    dimension_cols = [
         "user_id", "region", "city", "parent_category_name", "category_name",
         "param_1", "param_2", "param_3", "activation_date", "user_type"
     ]
     train_combs = []
     test_combs = []
-    for i in range(1, 5):
-        for dimension_comb in set(itertools.combinations(cols, i)):
+    cols = ['item_id'] + dimension_cols
+    data_train = train[cols]
+    data_test = test[cols]
+    data = data_train.append([data_test, train_active[cols], test_active[cols]])
+    # There are duplicate item_ids in train_active and test_active.
+    data.drop_duplicates('item_id', inplace=True)
+    for i in range(1, 3):
+        for dimension_comb in set(itertools.combinations(dimension_cols, i)):
             dimension_comb = list(dimension_comb)
              # user_id has extremly high cardinality
-            if ("user_id" in dimension_comb) and (i > 3):
+            if ("user_id" in dimension_comb) and (i > 2):
+                continue
+            if ("user_id" in dimension_comb) and ("user_type" in dimension_comb):
+                continue
+            if ("param_1" in dimension_comb) and (("param_2" in dimension_comb) or ("param_3" in dimension_comb)):
+                continue
+            if ("param_2" in dimension_comb) and ("param_3" in dimension_comb):
                 continue
             # parent_category_name will be redundant in this case.
             if ("parent_category_name" in dimension_comb) and ("category_name" in dimension_comb):
@@ -208,8 +226,8 @@ def brutal_count(train, test, train_active, test_active):
             # region + city is the precise identifier for city.
             if ("city" in dimension_comb) and ("region" not in dimension_comb):
                 continue
-            train_result, test_result = _multi_counts(
-                train, test, train_active, test_active, dimension_comb)
+            train_result, test_result = _multi_counts_data(
+                train, test, data, dimension_comb)
             train_combs.append(train_result)
             test_combs.append(test_result)
             print('--' + '+'.join(dimension_comb) + " generated")
@@ -248,7 +266,7 @@ def _multi_counts(train, test, train_active, test_active, cols):
     return train_result, test_result
 
 # Number of listings per tuple of the given columns
-def _multi_counts_data(data, cols):
+def _multi_counts_data(train, test, data, cols):
     cols_id = ['item_id', *cols]
     data = data[cols_id]
     count_dict = data.groupby(cols).count()

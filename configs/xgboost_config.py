@@ -82,6 +82,8 @@ xgboost_config_feature_list = [
   'parent_cat_price_median_active',
   'parent_cat_price_norm_active',
   'parent_cat_price_std_active',
+  'bow_desc_1',
+  'bow_title_1'
 ]
 xgboost_config = {
     'features': xgboost_config_feature_list,
@@ -114,7 +116,7 @@ xgboost_config = {
                 'max_depth': hp.choice('max_depth', [3, 5, 10]),
                 'min_child_weight': hp.loguniform('min_child_weight', -3, 1),
                 'subsample': hp.choice('subsample', [0.1, 0.3, 0.5, 0.7, 1]),
-                'colsample_bytree': hp.choice('colsample_bytree', [0.1, 0.3, 0.5, 0.7, 1]),
+                'colsample_bytree': hp.choice('colsample_bytree', [0.1, 0.3, 0.5]),
                 'colsample_bylevel': hp.choice('colsample_bylevel', [0.1, 0.3, 0.5, 0.7, 1]),
                 'lambda': hp.choice('lambda', [x/10 for x in range(0, 6)]),
                 'alpha': hp.choice('alpha', [x/10 for x in range(3, 8)]),
@@ -125,6 +127,6 @@ xgboost_config = {
                 'silent': 1
             },
         },
-        'max_evals': 35
+        'max_evals': 15
     }
 }

@@ -1,4 +1,8 @@
+import os.path
+import time
+
 import lightgbm as lgb
+
 
 class Lightgbm():
     def __init__(self, model_params = None, data_params = None):
@@ -23,7 +27,17 @@ class Lightgbm():
         self.model=None
 
     def fit(self, X_train, y_train):
-        d_train = lgb.Dataset(X_train, label=y_train)
+        if 'fold' not in self.data_params:
+            temp_path = 'data/lgb_fit_temp.csv'
+        else:        
+            temp_path = 'data/lgb_fit_temp_%d.csv' %self.data_params['fold']
+        if not os.path.isfile(temp_path):
+            t_start = time.time()
+            print('save', temp_path)
+            X_train.to_csv(temp_path, header=False)
+            t_finish = time.time()
+            print('Save csv time: ', (t_finish - t_start) / 60)
+        d_train = lgb.Dataset(temp_path, label=y_train, feature_name=list(X_train.columns))
         self.model = lgb.train(self.model_params, d_train)
 
     def predict(self, X):

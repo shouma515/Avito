@@ -21,6 +21,7 @@ import argparse
 import os
 
 import pandas as pd
+import numpy as np
 
 from feature_map import feature_map, feature_map_active
 
@@ -92,6 +93,53 @@ def generate_lite():
     test_active_df[lite_columns].to_csv('data/test_active_lite.csv', index=False)
     del test_active_df
 
+def reduce_mem_usage_df(df):
+    """ iterate through all the columns of a dataframe and modify the data type
+        to reduce memory usage.
+    """
+    start_mem = df.memory_usage().sum() / 1024**2
+    print('Memory usage of dataframe is {:.2f} MB'.format(start_mem))
+
+    for col in df.columns:
+        df[col] = reduce_mem_usage_series(df[col])
+
+    end_mem = df.memory_usage().sum() / 1024**2
+    print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
+    print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
+
+    return df
+
+def reduce_mem_usage_series(s):
+    col_type = s.dtype
+    
+    if any(t in str(col_type) for t in ['int', 'float']):
+        if col_type == 'int8' or col_type == 'int16':
+            return s
+        c_min = s.min()
+        c_max = s.max()
+        if str(col_type)[:3] == 'int':
+            if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+                return s.astype(np.int8)
+            elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+                return s.astype(np.int16)
+            elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+                return s.astype(np.int32)
+            else:
+                return s
+        else:
+            assert('float' in str(col_type))
+            # TODO: when converting float, precision is traded off.
+            # Need to observe the effect.
+            if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
+                return s.astype(np.float16)
+            elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
+                return s.astype(np.float32)
+            else:
+                return s
+    else:
+        print(s.name, ':', col_type)
+        return s
+
 
 def generate_features(name_list):
     # Reads raw train/test data.
@@ -111,7 +159,13 @@ def generate_feature_pickle(name, train_df, test_df):
     # Renames series so they have proper name when they are used in train/test dataframe.
     if isinstance(train, pd.Series):
         train.rename(name, inplace=True)
+        train = reduce_mem_usage_series(train)
         test.rename(name, inplace=True)
+        test = reduce_mem_usage_series(test)
+    else:
+        train = reduce_mem_usage_df(train)
+        test = reduce_mem_usage_df(test)
+
     # Sanity check
     assert(train.shape[0] == TRAIN_SIZE)
     assert(test.shape[0] == TEST_SIZE)

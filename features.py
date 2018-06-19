@@ -377,8 +377,12 @@ def bow_title_1(train, test):
         max_df=0.7, max_features=150)
     title_counts = count_vectorizer_title.fit_transform(train['title'].append(test['title']))
 
-    return (pd.DataFrame(title_counts[:len(train)].todense()),
-            pd.DataFrame(title_counts[len(train):].todense()))
+    train_result = pd.DataFrame(title_counts[:len(train)].todense())
+    test_result =  pd.DataFrame(title_counts[len(train):].todense())
+    train_result.rename(lambda x: 'title_' + str(x), axis=1, inplace=True)
+    test_result.rename(lambda x: 'title_' + str(x), axis=1, inplace=True)
+
+    return train_result, test_result
 
 def bow_desc_1(train, test):
     count_vectorizer_desc = TfidfVectorizer(
@@ -389,8 +393,42 @@ def bow_desc_1(train, test):
 
     desc_counts = count_vectorizer_desc.fit_transform(train_d.append(test_d))
 
-    return (pd.DataFrame(desc_counts[:len(train)].todense()),
-            pd.DataFrame(desc_counts[len(train):].todense()))
+    train_result = pd.DataFrame(desc_counts[:len(train)].todense())
+    test_result =  pd.DataFrame(desc_counts[len(train):].todense())
+    train_result.rename(lambda x: 'desc_' + str(x), axis=1, inplace=True)
+    test_result.rename(lambda x: 'desc_' + str(x), axis=1, inplace=True)
+
+    return train_result, test_result
+
+
+def _embedding_features(df_main, embeddings_index):
+    df = df_main[['item_id','title','description']].copy()
+    stop_words = stopwords.words('russian')
+    # fill blank
+    df["txt"] = df["title"].fillna(' ') + " " + df["description"].fillna(' ')
+    df["txt"] = df["txt"].str.lower() 
+    # remove punctuation
+    df["txt"] = df["txt"].str.replace(r'[^\w\s]',' ')
+    # remove stopwords
+    print("removing stopwords....")
+    df["txt"] = df["txt"].apply(lambda line: " ".join(word for word in line.split() if word not in stop_words))
+    
+    print("calculating mean embedding vecs.....")
+    df['embedding'] = df['txt'].apply(lambda line: np.mean([embeddings_index[word] for word in line.split() if word in embeddings_index.keys()],axis=0))
+    s = df['embedding']
+    result = pd.DataFrame.from_items(zip(s.index, s.values)).T
+    result.rename(columns = lambda x: 'embedding_'+str(x), inplace=True)
+    return result
+
+def embedding(train, test):
+    def get_coefs(word, *arr):
+        return word, np.asarray(arr, dtype='float32')
+    # original embedding matrix
+    print("reading pretrained embedding weights....")
+    embeddings_index = dict(get_coefs(*o.rstrip().rsplit(' ')) for o in open('data/cc.ru.300.vec'))
+    return (_embedding_features(train, embeddings_index),
+            _embedding_features(test, embeddings_index))
+
 
 # Utility functions
 
