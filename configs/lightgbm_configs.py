@@ -99,7 +99,7 @@ lightgbm_config_feature_list = [
 lightgbm_config = {
 
         'features': lightgbm_config_feature_list,
-        'folds': 5,
+        'folds': 3,
         'image_feature_folders': ['image_features/ads_image_features'],
         'model': 'lightgbm',
         'model_params': {
@@ -145,12 +145,13 @@ lightgbm_config = {
             'features': lightgbm_config_feature_list,
             'image_feature_folders': ['image_features/ads_image_features'],
             'model': 'lightgbm',
-            'folds': 5,
+            'folds': 3,
+            'categorical_feature': [0,1,2,3,4,5,6,7,8,9,10],
             'model_params': {
-                'max_depth': hp.choice('max_depth', [5, 10, 20]),
+                'max_depth': hp.choice('max_depth', [5, 7, 10]),
                 'min_hessian': hp.loguniform('min_hessian', -3, 1),
-                'bagging_fraction': hp.uniform('bagging_fraction', 0.3, 0.9),
-                'bagging_freq': hp.choice('bagging_freq', [0, 10, 50, 100]),
+                # 'bagging_fraction': hp.uniform('bagging_fraction', 0.3, 0.9),
+                # 'bagging_freq': hp.choice('bagging_freq', [0, 10, 50, 100]),
                 'sub_feature': hp.uniform('sub_feature', 0.1, 0.5),
                 'top_k':  hp.choice('top_k', [20,50,100]),
                 'max_bin': hp.choice('max_bin', [255, 350, 500]),
@@ -158,16 +159,16 @@ lightgbm_config = {
 
                 'learning_rate': hp.loguniform('learning_rate', -2, 0),
                 'boosting_type': 'gbdt',
-                'categorical_feature': '0,1,2,3,4,5,6,7,8,9,10',
                 'objective': 'regression',
                 # 'metric': hp.choice('metric', ['mae', 'mse']),
                 'metric': 'rmse',
-                'num_leaves': hp.choice('num_leaves', [100, 200, 300]),
+                'num_leaves': hp.choice('num_leaves', [15, 30, 60]),
                 'min_data': hp.choice('min_data', [300, 500, 750, 1000]),
-                'num_boost_round': hp.choice('num_boost_round', [500, 750, 1000]),
+                'num_boost_round': hp.choice('num_boost_round', [300, 500, 750]),
+                'early_stopping_rounds': 10,
                 'verbose': -1
             },
         },
-        'max_evals': 35
+        'max_evals': 2
     }
 }

@@ -12,7 +12,9 @@ import math
 import os
 import pickle
 import random
+import sys
 import time
+import lightgbm as lgb
 from optparse import OptionParser
 
 import numpy as np
@@ -216,7 +218,7 @@ def record_cv(
 
 # Returns two array containing validation and train errors of each fold.
 def cross_validate(config, X, y):
-    return cross_validate_strategy_1(config, X, y, 0.25)
+    return cross_validate_strategy_1(config, X, y, config['folds'] * 0.05)
 
 def cross_validate_strategy_0(config, X, y):
     model_name = config['model']
@@ -309,6 +311,92 @@ def cross_validate_strategy_1(config, X, y, cv_percent):
     print('Avg validation error: ', np.mean(val_errors))
     print('----------------------------------------\n')
     return val_errors, train_errors
+
+# Use 25% data to form cv set. Thus, if 5 folds, in every fold, 25/5 = 5%
+# will be used as validate, other 95% will be used for train.
+def create_cv_for_lgb(config, X, y):
+    folds = config['folds']
+    # Each cv has a 95%/5% split.
+    cv_percent = folds * 0.05
+
+    # Split a part of data to form cv set, other data will be used in all
+    # trains.
+    total = len(X)
+    idx = list(range(total))
+    random.seed(42)
+    random.shuffle(idx)
+
+    cv_set_size = int(total * cv_percent)
+    cv_set_idx = idx[:cv_set_size]
+    X_cv_set, y_cv_set = X.iloc[cv_set_idx], y.iloc[cv_set_idx]
+
+    other_idx = idx[cv_set_size:]
+    X_other, y_other = X.iloc[other_idx], y.iloc[other_idx]
+
+    # Cross validation
+    kf = KFold(n_splits=folds, shuffle=True, random_state=42)
+
+    cv_datasets = []
+    for i, (train_index, val_index) in enumerate(kf.split(X_cv_set, y_cv_set)):
+        print('Fold ', i)
+
+        X_train, y_train = X_cv_set.iloc[train_index], y_cv_set.iloc[train_index]
+        X_train = pd.concat([X_train, X_other])
+        y_train = pd.concat([y_train, y_other])
+        X_val, y_val = X_cv_set.iloc[val_index], y_cv_set.iloc[val_index]
+        # debug info
+        print(X_train.shape)
+        print(y_train.shape)
+        print(X_val.shape)
+        print(y_val.shape)     
+        temp_path = 'data/lgb_fit_temp_%d.csv' %i
+        temp_path_binary = 'data/lgb_fit_temp_%d.bin' %i
+        if not os.path.isfile(temp_path):
+            t_start = time.time()
+            print('save', temp_path)
+            X_train.to_csv(temp_path, header=False)
+            t_finish = time.time()
+            print('Save csv time: ', (t_finish - t_start) / 60)
+            d_train = lgb.Dataset(temp_path, label=y_train, feature_name=list(X_train.columns))
+            d_train.save_binary(temp_path_binary)
+        else:
+            d_train = lgb.Dataset(temp_path_binary)
+        print('lgb dataset %d size: %f' %(i, sys.getsizeof(d_train)/1024**2))
+        cv_datasets.append((d_train, y_train, X_val, y_val))
+    return cv_datasets
+
+def create_folds(config, X, y):
+    folds = config['folds']
+    # Each cv has a 95%/5% split.
+    cv_percent = folds * 0.05
+
+    # Split a part of data to form cv set, other data will be used in all
+    # trains.
+    total = len(X)
+    idx = list(range(total))
+    random.seed(42)
+    random.shuffle(idx)
+
+    cv_set_size = int(total * cv_percent)
+    
+    other_idx = idx[cv_set_size:]
+        
+    cv_set_idx = idx[:cv_set_size]
+    X_cv_set, y_cv_set = X.iloc[cv_set_idx], y.iloc[cv_set_idx]
+
+    
+
+    # Cross validation
+    kf = KFold(n_splits=folds, shuffle=True, random_state=42)
+
+    folds_idx = []
+    for i, (train_index, val_index) in enumerate(kf.split(X_cv_set, y_cv_set)):
+        print('Fold ', i)
+        train_index = list(train_index) + list(other_idx)
+        folds_idx.append((train_index, val_index))
+        print(len(train_index), len(val_index))
+
+    return folds_idx
 
 
 # Separates the cross validation with the data preparation step. The main purpose is

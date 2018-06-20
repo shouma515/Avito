@@ -10,6 +10,8 @@
 # see https://github.com/hyperopt/hyperopt/pull/319
 import os
 import pickle
+import gc
+import sys
 import time
 from datetime import datetime
 from optparse import OptionParser
@@ -18,19 +20,49 @@ import numpy as np
 from hyperopt import STATUS_OK, Trials, fmin, hp, space_eval, tpe
 
 from configs import config_map
-from train import cross_validate, prepare_data
+from train import cross_validate, prepare_data, create_folds
+import lightgbm as lgb
 
 TRIALS_FOLDER = 'trials/'
 
 def tune_single_model(parameter_space, config_name, max_evals, trials=None):
     # Prepare train data.
     X, y = prepare_data(parameter_space['features'], parameter_space['image_feature_folders'], test=False)
-    def train_wrapper(params):
-        cv_losses, cv_train_losses = cross_validate(params, X, y)
+    folds = create_folds(parameter_space, X, y)
+    categorical_feature = parameter_space['categorical_feature']
+    temp_path = 'data/lgb_fit_temp.csv'
+    temp_path_binary = 'data/lgb_fit_temp.bin'
+    if not os.path.isfile(temp_path_binary):
+        t_start = time.time()
+        print('save', temp_path)
+        X.to_csv(temp_path, header=False)
+        t_finish = time.time()
+        print('Save csv time: ', (t_finish - t_start) / 60)
+        X_y = lgb.Dataset(temp_path, label=y, feature_name=list(X.columns), categorical_feature=categorical_feature)
+        X_y.save_binary(temp_path_binary)
+    else:
+        X_y = lgb.Dataset(temp_path_binary, categorical_feature=categorical_feature, free_raw_data=False)
+    del X, y
+    gc.collect()
+    # def train_wrapper(params):
+    #     cv_losses, cv_train_losses = cross_validate(params, X, y)
+    #     # return an object to be recorded in hyperopt trials for future uses
+    #     return {
+    #         'loss': np.mean(cv_losses),
+    #         'train_loss': np.mean(cv_train_losses),
+    #         'status': STATUS_OK,
+    #         'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    #         'params': params
+    #     }
+    def train_wrapper_lgb(params):
+        result = lgb.cv(params['model_params'], X_y, folds=folds)
+        # print(result)
+        print(len(result['rmse-mean']))
+        print(result['rmse-mean'][-1])
         # return an object to be recorded in hyperopt trials for future uses
         return {
-            'loss': np.mean(cv_losses),
-            'train_loss': np.mean(cv_train_losses),
+            'loss': np.mean(result['rmse-mean'][-1]),
+            # 'train_loss': np.mean(cv_train_losses),
             'status': STATUS_OK,
             'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'params': params
@@ -38,22 +70,26 @@ def tune_single_model(parameter_space, config_name, max_evals, trials=None):
 
     if trials is None:
         trials = Trials()
-    # tuning parameters
     t1 = time.time()
     timestamp = datetime.now().strftime("%m-%d_%H:%M:%S")
-    best = fmin(train_wrapper, parameter_space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
-    t2 = time.time()
-    print('best trial get at round: ' + str(trials.best_trial['tid']))
-    print('best loss: ' + str(trials.best_trial['result']['loss']))
-    print(best)
-    print(space_eval(parameter_space, best))
-    print("time: %s" %((t2-t1) / 60))
+    try:
+        best = fmin(train_wrapper_lgb, parameter_space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # tuning parameters
+        t2 = time.time()
+        print('best trial get at round: ' + str(trials.best_trial['tid']))
+        print('best loss: ' + str(trials.best_trial['result']['loss']))
+        print(best)
+        print(space_eval(parameter_space, best))
+        print("time: %s" %((t2-t1) / 60))
 
-    # save the experiment trials in a pickle
-    if not os.path.exists(TRIALS_FOLDER):
-        os.makedirs(TRIALS_FOLDER)
-    # TODO: save tuning config when dump trials pickle.
-    pickle.dump(trials, open("%s%s_%s" %(TRIALS_FOLDER, config_name, timestamp), "wb"))
+        # save the experiment trials in a pickle
+        if not os.path.exists(TRIALS_FOLDER):
+            os.makedirs(TRIALS_FOLDER)
+        # TODO: save tuning config when dump trials pickle.
+        pickle.dump(trials, open("%s%s_%s" %(TRIALS_FOLDER, config_name, timestamp), "wb"))
 
     return trials
 
