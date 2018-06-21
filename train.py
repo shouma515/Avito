@@ -348,7 +348,7 @@ def create_cv_for_lgb(config, X, y):
         print(X_train.shape)
         print(y_train.shape)
         print(X_val.shape)
-        print(y_val.shape)     
+        print(y_val.shape)
         temp_path = 'data/lgb_fit_temp_%d.csv' %i
         temp_path_binary = 'data/lgb_fit_temp_%d.bin' %i
         if not os.path.isfile(temp_path):
@@ -378,13 +378,13 @@ def create_folds(config, X, y):
     random.shuffle(idx)
 
     cv_set_size = int(total * cv_percent)
-    
+
     other_idx = idx[cv_set_size:]
-        
+
     cv_set_idx = idx[:cv_set_size]
     X_cv_set, y_cv_set = X.iloc[cv_set_idx], y.iloc[cv_set_idx]
 
-    
+
 
     # Cross validation
     kf = KFold(n_splits=folds, shuffle=True, random_state=42)
@@ -394,9 +394,10 @@ def create_folds(config, X, y):
         print('Fold ', i)
         train_index = list(train_index) + list(other_idx)
         folds_idx.append((train_index, val_index))
+        print(len(set(train_index) & set(val_index)))
         print(len(train_index), len(val_index))
 
-    return folds_idx
+    return iter(folds_idx)
 
 
 # Separates the cross validation with the data preparation step. The main purpose is
@@ -444,7 +445,7 @@ def predict(config, cv=True):
         record_cv(config, val_errors, train_errors, sub_timestamp)
 
     print('training on entire dataset...')
-    model = get_model(model_name, model_params)
+    model = get_model(model_name, model_params, config)
     model.fit(X_train, y_train)
     rmse = math.sqrt(mean_squared_error(y_train, model.predict(X_train)))
     print('training error: ', rmse)

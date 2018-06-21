@@ -38,7 +38,7 @@ def tune_single_model(parameter_space, config_name, max_evals, trials=None):
         X.to_csv(temp_path, header=False)
         t_finish = time.time()
         print('Save csv time: ', (t_finish - t_start) / 60)
-        X_y = lgb.Dataset(temp_path, label=y, feature_name=list(X.columns), categorical_feature=categorical_feature)
+        X_y = lgb.Dataset(temp_path, label=y, feature_name=list(X.columns), categorical_feature=categorical_feature, free_raw_data=False)
         X_y.save_binary(temp_path_binary)
     else:
         X_y = lgb.Dataset(temp_path_binary, categorical_feature=categorical_feature, free_raw_data=False)
@@ -55,14 +55,14 @@ def tune_single_model(parameter_space, config_name, max_evals, trials=None):
     #         'params': params
     #     }
     def train_wrapper_lgb(params):
-        result = lgb.cv(params['model_params'], X_y, folds=folds)
+        result = lgb.cv(params['model_params'], X_y)
         # print(result)
         print(len(result['rmse-mean']))
         print(result['rmse-mean'][-1])
         # return an object to be recorded in hyperopt trials for future uses
         return {
-            'loss': np.mean(result['rmse-mean'][-1]),
-            # 'train_loss': np.mean(cv_train_losses),
+            'loss': result['rmse-mean'][-1],
+            'round': len(result['rmse-mean']),
             'status': STATUS_OK,
             'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'params': params

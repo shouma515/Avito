@@ -111,31 +111,21 @@ def reduce_mem_usage_df(df):
 
 def reduce_mem_usage_series(s):
     col_type = s.dtype
-    
-    if any(t in str(col_type) for t in ['int', 'float']):
+
+    # if any(t in str(col_type) for t in ['int', 'float']):
+    if 'int' in str(col_type):
         if col_type == 'int8' or col_type == 'int16':
             return s
         c_min = s.min()
         c_max = s.max()
-        if str(col_type)[:3] == 'int':
-            if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
-                return s.astype(np.int8)
-            elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
-                return s.astype(np.int16)
-            elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
-                return s.astype(np.int32)
-            else:
-                return s
+        if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+            return s.astype(np.int8)
+        elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+            return s.astype(np.int16)
+        elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+            return s.astype(np.int32)
         else:
-            assert('float' in str(col_type))
-            # TODO: when converting float, precision is traded off.
-            # Need to observe the effect.
-            if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
-                return s.astype(np.float16)
-            elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
-                return s.astype(np.float32)
-            else:
-                return s
+            return s
     else:
         print(s.name, ':', col_type)
         return s
