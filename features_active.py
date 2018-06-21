@@ -157,7 +157,7 @@ def brutal_price_avg_1_3(train, test, train_active, test_active):
     data.drop_duplicates('item_id', inplace=True)
     # Drop item_id column as it is not used in grouping
     data.drop('item_id', axis=1, inplace=True)
-    for i in range(1, 3):
+    for i in range(1, 4):
         for dimension_comb in set(itertools.combinations(dimension_cols, i)):
             dimension_comb = list(dimension_comb)
             # user_id has extremly high cardinality
@@ -208,7 +208,7 @@ def brutal_count_1_3(train, test, train_active, test_active):
     data = data_train.append([data_test, train_active[cols], test_active[cols]])
     # There are duplicate item_ids in train_active and test_active.
     data.drop_duplicates('item_id', inplace=True)
-    for i in range(1, 3):
+    for i in range(1, 4):
         for dimension_comb in set(itertools.combinations(dimension_cols, i)):
             dimension_comb = list(dimension_comb)
              # user_id has extremly high cardinality
