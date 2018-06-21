@@ -26,6 +26,7 @@ from configs import config_map
 # TODO: move constants used across files to a single file
 from feature_generator import PICKLE_FOLDER, TARGET_PATH
 from models import model_map
+from scipy.sparse import csr_matrix
 
 TRAIN_SIZE = 1503424
 TEST_SIZE = 508438
@@ -36,14 +37,82 @@ SUBMISSION_RECORD_FOLDER = RECORD_FOLDER + 'sub/'
 MODEL_PICKLE_FOLDER = RECORD_FOLDER + 'model/'
 
 
-# Prepares train/test data. Target column will be returned when get train data;
-# when get test data, it will be None.
-# Two things to note:
-#   1. All the feature pickles should be generated before training;
-#   2. Order of training data should not be changed if you want to
-#      compare result between trainings, as cross validation depends
-#      on that.
-def prepare_data(feature_names, image_feature_folders=[], test=False):
+# # Prepares train/test data. Target column will be returned when get train data;
+# # when get test data, it will be None.
+# # Two things to note:
+# #   1. All the feature pickles should be generated before training;
+# #   2. Order of training data should not be changed if you want to
+# #      compare result between trainings, as cross validation depends
+# #      on that.
+# def prepare_data(feature_names, image_feature_folders=[], test=False):
+#     DATA_LENTH = TEST_SIZE if test else TRAIN_SIZE
+
+#     features = []
+#     total_feature = 0
+#     for name in feature_names:
+#         # Assume all the feature pickles are generated. Any features not
+#         # generated will cause an error here.
+#         pickle_path = PICKLE_FOLDER + name
+#         if test:
+#             pickle_path += '_test'
+#         feature = pd.read_pickle(pickle_path)
+#         # Sanity check
+#         assert(feature.shape[0] == DATA_LENTH)
+#         if isinstance(feature, pd.DataFrame):
+#             total_feature += feature.shape[1]
+#         else:
+#             # Series
+#             total_feature += 1
+
+#         features.append(feature)
+
+#     # Add image features.
+#     if len(image_feature_folders) > 0:
+#         # load item id to join image features.
+#         item_id_pickle_path = PICKLE_FOLDER + 'item_id'
+#         if test:
+#             item_id_pickle_path += '_test'
+#         # Need to convert the item_id Series to DataFrame for merge with image
+#         # features.
+#         item_id = pd.read_pickle(item_id_pickle_path).to_frame()
+#         # Sanity check
+#         assert(item_id.shape[0] == DATA_LENTH)
+#         image_features = load_image_features(image_feature_folders, test)
+#         image_features = item_id.merge(
+#             image_features, how='left', on='item_id', validate='1:1')
+#         image_features.drop('item_id', axis=1, inplace=True)
+#         # Sanity check
+#         assert(image_features.shape[0] == DATA_LENTH)
+#         total_feature += image_features.shape[1]
+#         features.append(image_features)
+
+#     X = pd.concat(features, axis=1)
+#     y = None
+#     if not test:
+#         y = pd.read_pickle(TARGET_PATH)
+
+
+#     # Sanity check
+#     assert(X.shape == (DATA_LENTH, total_feature))
+#     print("Data size:", X.shape)
+#     if not test:
+#         assert(y.shape == (TRAIN_SIZE,))
+#         print("Label size:", y.shape)
+
+#     # Debug info
+#     print(X.columns)
+#     print(X.shape)
+#     if not test:
+#         print(y.name)
+#         print(y.shape)
+
+#     # Memory usage
+#     # X = reduce_mem_usage(X)
+#     print('Memory usage of training data is {:.2f} MB'.format(X.memory_usage().sum() / 1024**2))
+
+#     return X, y
+
+def prepare_data_sparse(feature_names, image_feature_folders=[], test=False):
     DATA_LENTH = TEST_SIZE if test else TRAIN_SIZE
 
     features = []
@@ -108,8 +177,12 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
     # Memory usage
     # X = reduce_mem_usage(X)
     print('Memory usage of training data is {:.2f} MB'.format(X.memory_usage().sum() / 1024**2))
+    feature_names = list(X.columns)
+    X = csr_matrix(X.values)
+    print('Memory usage of training data is {:.2f} MB'.format(X.memory_usage().sum() / 1024**2))
 
-    return X, y
+
+    return X, y, feature_names
 
 
 # def reduce_mem_usage(df):
@@ -406,7 +479,8 @@ def train(config, record=True):
     # Prepare train data.
     feature_names = config['features']
     image_feature_folders = config['image_feature_folders']
-    X, y = prepare_data(feature_names, image_feature_folders, test=False)
+    categorical_feature = config['categorical_feature']
+    X, y, column_names = prepare_data_sparse(feature_names, image_feature_folders, test=False)
     # For debug use only
     # print(X.columns)
     # print(X.describe(include='all'))
@@ -417,11 +491,34 @@ def train(config, record=True):
     # print(y.index)
     # X = X[:500]
     # y = y[:500]
-    val_errors, train_errors = cross_validate(config, X, y)
+    # val_errors, train_errors = cross_validate(config, X, y)
     # Records the cross validation in a json file if needed.
-    if record:
-        record_cv(config, val_errors, train_errors)
+    # if record:
+        # record_cv(config, val_errors, train_errors)
 
+    # path_hash = -hash(','.join(feature_names))
+    # temp_path = 'data/lgb_fit_temp_%s.csv' %path_hash
+    # temp_path_binary = 'data/lgb_fit_temp_%s.bin' %path_hash
+    # if not os.path.isfile(temp_path_binary):
+    #     t_start = time.time()
+    #     print('save', temp_path)
+    #     X.to_csv(temp_path, header=False)
+    #     t_finish = time.time()
+    #     print('Save csv time: ', (t_finish - t_start) / 60)
+    #     X_y = lgb.Dataset(temp_path, label=y, feature_name=list(X.columns), categorical_feature=categorical_feature, free_raw_data=False)
+    #     X_y.save_binary(temp_path_binary)
+    # else:
+    #     X_y = lgb.Dataset(temp_path_binary, categorical_feature=categorical_feature, free_raw_data=False)
+
+    X_y = lgb.Dataset(X, y, categorical_feature=categorical_feature, free_raw_data=False, feature_name=column_names)
+
+    model_params = config['model_params']
+    model_params['num_boost_round'] = 500
+    model_params['early_stopping_rounds'] = 15
+    result = lgb.cv(model_params, X_y)
+    # print(result)
+    print(len(result['rmse-mean']))
+    print(result['rmse-mean'][-1])
 
 # Predicts on test data and generates submission.
 def predict(config, cv=True):
