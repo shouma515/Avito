@@ -140,7 +140,21 @@ lightgbm_config = {
         #   'top_k': 50,
         #   'verbose': -1
         # },
-        'model_params': {'boosting_type': 'gbdt', 'learning_rate': 0.1518452576617124, 'max_bin': 500, 'max_depth': 7, 'metric': 'rmse', 'min_data': 750, 'min_data_in_bin': 100, 'min_hessian': 1.8088535712382525, 'num_boost_round': 446, 'num_leaves': 60, 'objective': 'regression', 'sub_feature': 0.22924361218798947, 'top_k': 50, 'verbose': -1},
+        # 'model_params': {'boosting_type': 'gbdt', 'learning_rate': 0.1518452576617124, 'max_bin': 500, 'max_depth': 7, 'metric': 'rmse', 'min_data': 750, 'min_data_in_bin': 100, 'min_hessian': 1.8088535712382525, 'num_boost_round': 446, 'num_leaves': 60, 'objective': 'regression', 'sub_feature': 0.22924361218798947, 'top_k': 50, 'verbose': -1},
+      'model_params': {'boosting_type': 'gbdt',
+    'learning_rate': 0.13559835916026047,
+    'max_bin': 500,
+    'max_depth': 7,
+    'metric': 'rmse',
+    'min_data': 750,
+    'min_data_in_bin': 100,
+    'min_hessian': 0.4965995198348241,
+    'num_leaves': 30,
+    'num_boost_round': 750,
+    'objective': 'regression',
+    'sub_feature': 0.18511250210880564,
+    'top_k': 50,
+    'verbose': -1},
     # 'features': lightgbm_config_feature_list,
     # 'image_feature_folders': ['image_features/ads_image_features'],
     # 'folds':2,
@@ -186,6 +200,6 @@ lightgbm_config = {
                 'verbose': -1
             },
         },
-        'max_evals': 17
+        'max_evals': 60
     }
 }
