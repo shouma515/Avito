@@ -437,6 +437,20 @@ def period_features(train, test):
     columns = ['avg_days_up_user', 'avg_times_up_user', 'n_user_items']
     return train[columns], test[columns]
 
+def regional_income(train,test):
+    '''a generic function that takes the train and test data and returns 
+    a new copy with external feature added'''
+    # add feature regional gdp growth rate and income
+    regional_economy=pd.read_csv('data/regional_economy.csv',index_col=0)
+    columns = ['income2018', 'growth_rate']
+    train = train.merge(regional_economy, 'left', left_on='region', right_index=True)
+    test = test.merge(regional_economy, 'left', left_on='region', right_index=True)
+    # train['regional_income']=train.region.apply(lambda x: regional_economy.loc[x,'income2018'])
+    # test['regional_income']=test.region.apply(lambda x: regional_economy.loc[x,'income2018'])
+    # add more feature
+
+    return train[columns], test[columns]
+
 # Utility functions
 
 # Encode data from 0 to N, nan will be encoded as -1. If nan need to

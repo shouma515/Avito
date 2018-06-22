@@ -28,10 +28,10 @@ TRIALS_FOLDER = 'trials/'
 def tune_single_model(parameter_space, config_name, max_evals, trials=None):
     # Prepare train data.
     X, y = prepare_data(parameter_space['features'], parameter_space['image_feature_folders'], test=False)
-    folds = create_folds(parameter_space, X, y)
     categorical_feature = parameter_space['categorical_feature']
-    temp_path = 'data/lgb_fit_temp.csv'
-    temp_path_binary = 'data/lgb_fit_temp.bin'
+    hash_code = -hash(','.join(parameter_space['features']))
+    temp_path = 'data/lgb_fit_temp_%d.csv' %hash_code
+    temp_path_binary = 'data/lgb_fit_temp_%d.bin' %hash_code
     if not os.path.isfile(temp_path_binary):
         t_start = time.time()
         print('save', temp_path)

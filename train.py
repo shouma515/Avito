@@ -86,6 +86,10 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
         features.append(image_features)
 
     X = pd.concat(features, axis=1)
+    # Lightgbm dataset from csv need all columns to be numerical.
+    for col in X.columns:
+        if X[col].dtype == bool:
+            X[col] = X[col].astype(np.int8)
     y = None
     if not test:
         y = pd.read_pickle(TARGET_PATH)
@@ -109,6 +113,7 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
     # X = reduce_mem_usage(X)
     print('Memory usage of training data is {:.2f} MB'.format(X.memory_usage().sum() / 1024**2))
 
+    print(y.head())
     return X, y
 
 
