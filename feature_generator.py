@@ -146,24 +146,24 @@ def generate_features(name_list):
 def generate_feature_pickle(name, train_df, test_df):
     # Generates feature series/df for train and test dataset
     train, test = feature_map[name](train_df, test_df)
+    # Sanity check
+    assert(train.shape[0] == TRAIN_SIZE)
+    assert(test.shape[0] == TEST_SIZE)
     # Renames series so they have proper name when they are used in train/test dataframe.
     if isinstance(train, pd.Series):
         train.rename(name, inplace=True)
         train = reduce_mem_usage_series(train)
         test.rename(name, inplace=True)
         test = reduce_mem_usage_series(test)
+        _save_to_pickle(train, test)
     else:
         train = reduce_mem_usage_df(train)
         test = reduce_mem_usage_df(test)
-
-    # Sanity check
-    assert(train.shape[0] == TRAIN_SIZE)
-    assert(test.shape[0] == TEST_SIZE)
-
-    # Generates pickle.
-    pickle_path = PICKLE_FOLDER + name
-    train.to_pickle(pickle_path)
-    test.to_pickle(pickle_path + '_test')
+        if name not in ['embedding']:
+            # Separate the dataframe to series and store each as a pickle
+            for col in train:
+                train_series, test_series = train[col], test[col]
+                _save_to_pickle(train_series, test_series)
 
     print(name, ' feature generated.')
 
@@ -184,17 +184,33 @@ def generate_active_features(name_list):
 def generate_active_feature_pickle(name, train_df, test_df, train_active_df, test_active_df):
     # Generates feature series/df for train and test dataset
     train, test = feature_map_active[name](train_df, test_df, train_active_df, test_active_df)
+    # Sanity check
+    assert(train.shape[0] == TRAIN_SIZE)
+    assert(test.shape[0] == TEST_SIZE)
     # Renames series so they have proper name when they are used in train/test dataframe.
     if isinstance(train, pd.Series):
         train.rename(name, inplace=True)
+        train = reduce_mem_usage_series(train)
         test.rename(name, inplace=True)
-
-    # Generates pickle.
-    pickle_path = PICKLE_FOLDER + name
-    train.to_pickle(pickle_path)
-    test.to_pickle(pickle_path + '_test')
+        test = reduce_mem_usage_series(test)
+        _save_to_pickle(train, test)
+    else:
+        train = reduce_mem_usage_df(train)
+        test = reduce_mem_usage_df(test)
+        if name not in ['embedding']:
+            # Separate the dataframe to series and store each as a pickle
+            for col in train:
+                train_series, test_series = train[col], test[col]
+                _save_to_pickle(train_series, test_series)
 
     print(name, ' feature generated.')
+
+
+# Save a series to picke
+def _save_to_pickle(train, test):
+    pickle_path = PICKLE_FOLDER + train.name
+    train.to_pickle(pickle_path)
+    test.to_pickle(pickle_path + '_test')
 
 
 def main():

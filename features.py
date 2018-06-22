@@ -429,6 +429,13 @@ def embedding(train, test):
     return (_embedding_features(train, embeddings_index),
             _embedding_features(test, embeddings_index))
 
+# From: https://www.kaggle.com/bminixhofer/aggregated-features-lightgbm/output
+def period_features(train, test):
+    period_features = pd.read_csv('data/aggregated_features.csv')
+    train = train.merge(period_features, 'left', 'user_id')
+    test = test.merge(period_features, 'left', 'user_id')
+    columns = ['avg_days_up_user', 'avg_times_up_user', 'n_user_items']
+    return train[columns], test[columns]
 
 # Utility functions
 

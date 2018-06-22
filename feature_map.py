@@ -53,6 +53,7 @@ feature_map = {
   'param_2': features.param_2,
   'param_3': features.param_3,
   'parent_category_name': features.parent_category_name,
+  'period_features': features.period_features,
   'price': features.price,
   'region': features.region,
   'title': features.title,

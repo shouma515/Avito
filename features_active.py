@@ -185,8 +185,11 @@ def brutal_price_avg_1_3(train, test, train_active, test_active):
             train_std, test_std = train_result[std_col], test_result[std_col]
             # Add normalized price column
             norm_col = '+'.join(dimension_comb) + '-price-norm'
+            diff_col = '+'.join(dimension_comb) + '-price-diff'
             train_result[norm_col] = _ratio(train['price'] - train_mean, train_std, 0)
             test_result[norm_col] = _ratio(test['price'] - test_mean, test_std, 0)
+            train_result[diff_col] = train['price'] - train_mean
+            test_result[diff_col] = test['price'] - test_mean
             train_combs.append(train_result)
             test_combs.append(test_result)
             print('--' + '+'.join(dimension_comb) + " generated")
