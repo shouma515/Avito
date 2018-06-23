@@ -113,7 +113,6 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
     # X = reduce_mem_usage(X)
     print('Memory usage of training data is {:.2f} MB'.format(X.memory_usage().sum() / 1024**2))
 
-    print(y.head())
     return X, y
 
 
@@ -321,8 +320,10 @@ def cross_validate_strategy_1(config, X, y, cv_percent):
 # will be used as validate, other 95% will be used for train.
 def create_cv_for_lgb(config, X, y):
     folds = config['folds']
-    # Each cv has a 95%/5% split.
-    cv_percent = folds * 0.05
+    categorical_feature = config['categorical_feature']
+    file_code = len(X.columns)
+    # Each cv has a 90%/10% split.
+    cv_percent = folds * 0.1
 
     # Split a part of data to form cv set, other data will be used in all
     # trains.
@@ -354,20 +355,21 @@ def create_cv_for_lgb(config, X, y):
         print(y_train.shape)
         print(X_val.shape)
         print(y_val.shape)
-        temp_path = 'data/lgb_fit_temp_%d.csv' %i
-        temp_path_binary = 'data/lgb_fit_temp_%d.bin' %i
-        if not os.path.isfile(temp_path):
+
+        temp_path = 'data/lgb_fit_temp_%d_%d_csv' %(file_code, i)
+        temp_path_binary = 'data/lgb_fit_temp_%d_%d_bin' %(file_code, i)
+        if not os.path.isfile(temp_path_binary):
             t_start = time.time()
             print('save', temp_path)
             X_train.to_csv(temp_path, header=False)
             t_finish = time.time()
             print('Save csv time: ', (t_finish - t_start) / 60)
-            d_train = lgb.Dataset(temp_path, label=y_train, feature_name=list(X_train.columns))
+            d_train = lgb.Dataset(temp_path, label=y_train, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
+            print('Save binary: ', temp_path_binary)
             d_train.save_binary(temp_path_binary)
-        else:
-            d_train = lgb.Dataset(temp_path_binary)
-        print('lgb dataset %d size: %f' %(i, sys.getsizeof(d_train)/1024**2))
-        cv_datasets.append((d_train, y_train, X_val, y_val))
+        d_train = lgb.Dataset(temp_path_binary, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
+        d_val = lgb.Dataset(X_val, label=y_val, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
+        cv_datasets.append((d_train, d_val, y_train, X_val, y_val))
     return cv_datasets
 
 def create_folds(config, X, y):
@@ -398,7 +400,7 @@ def create_folds(config, X, y):
     for i, (train_index, val_index) in enumerate(kf.split(X_cv_set, y_cv_set)):
         print('Fold ', i)
         train_index = list(train_index) + list(other_idx)
-        folds_idx.append((train_index, val_index))
+        folds_idx.append((train_index, list(val_index)))
         print(len(set(train_index) & set(val_index)))
         print(len(train_index), len(val_index))
 

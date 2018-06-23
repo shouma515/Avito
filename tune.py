@@ -15,12 +15,14 @@ import sys
 import time
 from datetime import datetime
 from optparse import OptionParser
+from sklearn.metrics import mean_squared_error
+import math
 
 import numpy as np
 from hyperopt import STATUS_OK, Trials, fmin, hp, space_eval, tpe
 
 from configs import config_map
-from train import cross_validate, prepare_data, create_folds
+from train import cross_validate, prepare_data, create_folds, create_cv_for_lgb
 import lightgbm as lgb
 
 TRIALS_FOLDER = 'trials/'
@@ -93,6 +95,67 @@ def tune_single_model(parameter_space, config_name, max_evals, trials=None):
 
     return trials
 
+
+
+def tune_single_model_2(parameter_space, config_name, max_evals, trials=None):
+    # Prepare train data.
+    X, y = prepare_data(parameter_space['features'], parameter_space['image_feature_folders'], test=False)
+    cv_datasets = create_cv_for_lgb(parameter_space, X, y)
+
+    del X, y
+    gc.collect()
+    # def train_wrapper(params):
+    #     cv_losses, cv_train_losses = cross_validate(params, X, y)
+    #     # return an object to be recorded in hyperopt trials for future uses
+    #     return {
+    #         'loss': np.mean(cv_losses),
+    #         'train_loss': np.mean(cv_train_losses),
+    #         'status': STATUS_OK,
+    #         'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    #         'params': params
+    #     }
+    def train_wrapper_lgb(params):
+        val_errors = []
+        for d_train, d_val, y_train, X_val, y_val in cv_datasets:
+            print(params['model_params']['num_boost_round'])
+            model = lgb.train(params['model_params'], d_train, valid_sets=[d_val])
+            print(model.current_iteration())
+            print('validate caculated: %f' %(math.sqrt(mean_squared_error(y_val, model.predict(X_val)))))
+            val_errors.append(math.sqrt(mean_squared_error(y_val, model.predict(X_val))))
+
+        return {
+            'loss': np.mean(val_errors),
+            # 'round': len(result['rmse-mean']),
+            'status': STATUS_OK,
+            'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'params': params
+        }
+
+    if trials is None:
+        trials = Trials()
+    t1 = time.time()
+    timestamp = datetime.now().strftime("%m-%d_%H:%M:%S")
+    try:
+        best = fmin(train_wrapper_lgb, parameter_space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        # tuning parameters
+        t2 = time.time()
+        print('best trial get at round: ' + str(trials.best_trial['tid']))
+        print('best loss: ' + str(trials.best_trial['result']['loss']))
+        print(best)
+        print(space_eval(parameter_space, best))
+        print("time: %s" %((t2-t1) / 60))
+
+        # save the experiment trials in a pickle
+        if not os.path.exists(TRIALS_FOLDER):
+            os.makedirs(TRIALS_FOLDER)
+        # TODO: save tuning config when dump trials pickle.
+        pickle.dump(trials, open("%s%s_%s" %(TRIALS_FOLDER, config_name, timestamp), "wb"))
+
+    return trials
+
 def main():
     parser = OptionParser()
     # Flag for input which configuration to use.
@@ -114,7 +177,7 @@ def main():
         print('Using trials: %s' %trials_path)
 
     tune_params = config['tune_params']
-    tune_single_model(
+    tune_single_model_2(
         tune_params['param_space'],
         options.config_name,
         tune_params['max_evals'],

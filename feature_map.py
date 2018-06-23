@@ -56,6 +56,7 @@ feature_map = {
   'period_features': features.period_features,
   'price': features.price,
   'region': features.region,
+  'regional_income': features.regional_income,
   'title': features.title,
   'title_exclam_count': features.title_exclam_count,
   'title_len': features.title_len,
