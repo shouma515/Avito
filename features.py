@@ -12,6 +12,7 @@ import string
 from sklearn.preprocessing import LabelEncoder
 from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.decomposition import PCA
 
 
 # Global variables
@@ -401,22 +402,26 @@ def bow_desc_1(train, test):
     return train_result, test_result
 
 
-def _embedding_features(df_main, embeddings_index):
-    df = df_main[['item_id','title','description']].copy()
+def _embedding_features(df, embeddings_index, pca_dim):
+    # df = df_main[['title','description']].copy()
     stop_words = stopwords.words('russian')
     # fill blank
     df["txt"] = df["title"].fillna(' ') + " " + df["description"].fillna(' ')
-    df["txt"] = df["txt"].str.lower() 
+    df["txt"] = df["txt"].str.lower()
     # remove punctuation
     df["txt"] = df["txt"].str.replace(r'[^\w\s]',' ')
     # remove stopwords
     print("removing stopwords....")
     df["txt"] = df["txt"].apply(lambda line: " ".join(word for word in line.split() if word not in stop_words))
-    
+
     print("calculating mean embedding vecs.....")
     df['embedding'] = df['txt'].apply(lambda line: np.mean([embeddings_index[word] for word in line.split() if word in embeddings_index.keys()],axis=0))
     s = df['embedding']
     result = pd.DataFrame.from_items(zip(s.index, s.values)).T
+    print("Start PCA to %d dimension....." %pca_dim)
+    result.fillna(0, inplace=True)
+    pca = PCA(n_components = pca_dim)
+    result = pd.DataFrame(pca.fit_transform(result))
     result.rename(columns = lambda x: 'embedding_'+str(x), inplace=True)
     return result
 
@@ -426,8 +431,9 @@ def embedding(train, test):
     # original embedding matrix
     print("reading pretrained embedding weights....")
     embeddings_index = dict(get_coefs(*o.rstrip().rsplit(' ')) for o in open('data/cc.ru.300.vec'))
-    return (_embedding_features(train, embeddings_index),
-            _embedding_features(test, embeddings_index))
+    data = pd.concat([train[['title','description']], test[['title','description']]])
+    embeddings = _embedding_features(data, embeddings_index, 100)
+    return embeddings[:len(train)], embeddings[len(train):]
 
 # From: https://www.kaggle.com/bminixhofer/aggregated-features-lightgbm/output
 def period_features(train, test):
@@ -438,7 +444,7 @@ def period_features(train, test):
     return train[columns], test[columns]
 
 def regional_income(train,test):
-    '''a generic function that takes the train and test data and returns 
+    '''a generic function that takes the train and test data and returns
     a new copy with external feature added'''
     # add feature regional gdp growth rate and income
     regional_economy=pd.read_csv('data/regional_economy.csv',index_col=0)

@@ -31,6 +31,7 @@ class Lightgbm():
         hash_code = len(X_train.columns)
         temp_path = 'data/lgb_fit_temp_%d.csv' %hash_code
         temp_path_binary = 'data/lgb_fit_temp_%d.bin' %hash_code
+        print(X_train.shape)
         if not os.path.isfile(temp_path):
             t_start = time.time()
             print('save', temp_path)
@@ -38,7 +39,7 @@ class Lightgbm():
             t_finish = time.time()
             print('Save csv time: ', (t_finish - t_start) / 60)
         if not os.path.isfile(temp_path_binary):
-            X_y = lgb.Dataset(temp_path, label=y, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
+            X_y = lgb.Dataset(temp_path, label=y_train, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
             X_y.save_binary(temp_path_binary)
         d_train = lgb.Dataset(temp_path_binary, categorical_feature=categorical_feature, free_raw_data=False)
 

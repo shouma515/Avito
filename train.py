@@ -59,6 +59,7 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
         assert(feature.shape[0] == DATA_LENTH)
         if isinstance(feature, pd.DataFrame):
             total_feature += feature.shape[1]
+            feature.reset_index(drop=True, inplace=True)
         else:
             # Series
             total_feature += 1
@@ -96,6 +97,8 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
 
 
     # Sanity check
+    print(X.shape)
+    print(str(DATA_LENTH), str(total_feature))
     assert(X.shape == (DATA_LENTH, total_feature))
     print("Data size:", X.shape)
     if not test:
@@ -115,43 +118,6 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
 
     return X, y
 
-
-# def reduce_mem_usage(df):
-#     """ iterate through all the columns of a dataframe and modify the data type
-#         to reduce memory usage.
-#     """
-#     start_mem = df.memory_usage().sum() / 1024**2
-#     print('Memory usage of dataframe is {:.2f} MB'.format(start_mem))
-
-#     for col in df.columns:
-#         col_type = df[col].dtype
-
-#         if col_type != object:
-#             if col_type == 'bool' or col_type == 'int8' or col_type == 'int16':
-#                 continue
-#             c_min = df[col].min()
-#             c_max = df[col].max()
-#             if str(col_type)[:3] == 'int':
-#                 if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
-#                     df[col] = df[col].astype(np.int8)
-#                 elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
-#                     df[col] = df[col].astype(np.int16)
-#                 elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
-#                     df[col] = df[col].astype(np.int32)
-#             else:
-#                 assert('float' in str(col_type))
-#                 if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
-#                     df[col] = df[col].astype(np.float16)
-#                 elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
-#                     df[col] = df[col].astype(np.float32)
-#         else:
-#             print(col, ':', col_type)
-
-#     end_mem = df.memory_usage().sum() / 1024**2
-#     print('Memory usage after optimization is: {:.2f} MB'.format(end_mem))
-#     print('Decreased by {:.1f}%'.format(100 * (start_mem - end_mem) / start_mem))
-
-#     return df
 
 # Each set of image features is in one folder. And we load features folder by
 # folder and join them with item_id.
@@ -316,6 +282,43 @@ def cross_validate_strategy_1(config, X, y, cv_percent):
     print('----------------------------------------\n')
     return val_errors, train_errors
 
+def cv_lgb(config, X, y):
+    cv_datasets = create_cv_for_lgb(config, X, y)
+
+    # def train_wrapper(params):
+    #     cv_losses, cv_train_losses = cross_validate(params, X, y)
+    #     # return an object to be recorded in hyperopt trials for future uses
+    #     return {
+    #         'loss': np.mean(cv_losses),
+    #         'train_loss': np.mean(cv_train_losses),
+    #         'status': STATUS_OK,
+    #         'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    #         'params': params
+    #     }
+    val_errors = []
+    train_errors = []
+    rounds = []
+    model_params = config['model_params']
+    i = 0
+    for d_train, d_val, y_train, X_val, y_val in cv_datasets:
+        print('Fold %d' %i)
+        i += 1
+        model = lgb.train(model_params.copy(), d_train, valid_sets=[d_val])
+        print(model.current_iteration())
+        rounds.append(model.current_iteration())
+        val_pred = model.predict(X_val)
+        np.clip(val_pred, 0, 1, out=val_pred)
+        val_error = math.sqrt(mean_squared_error(y_val, val_pred))
+        print('validate caculated: %f' %val_error)
+        val_errors.append(val_error)
+
+        train_pred = model.predict('lgb_temp_%d_%d.bin' %(len(X_val.columns), i))
+        # np.clip(val_pred, 0, 1, out=val_pred)
+        train_error = math.sqrt(mean_squared_error(y_train,train_pred))
+        print('validate caculated: %f' %train_error)
+        train_errors.append(train_error)
+    return val_errors, train_errors
+
 # Use 25% data to form cv set. Thus, if 5 folds, in every fold, 25/5 = 5%
 # will be used as validate, other 95% will be used for train.
 def create_cv_for_lgb(config, X, y):
@@ -356,14 +359,15 @@ def create_cv_for_lgb(config, X, y):
         print(X_val.shape)
         print(y_val.shape)
 
-        temp_path = 'data/lgb_fit_temp_%d_%d_csv' %(file_code, i)
-        temp_path_binary = 'data/lgb_fit_temp_%d_%d_bin' %(file_code, i)
-        if not os.path.isfile(temp_path_binary):
+        temp_path = 'data/lgb_temp_%d_%d.csv' %(file_code, i)
+        temp_path_binary = 'data/lgb_temp_%d_%d.bin' %(file_code, i)
+        if not os.path.isfile(temp_path):
             t_start = time.time()
             print('save', temp_path)
             X_train.to_csv(temp_path, header=False)
             t_finish = time.time()
             print('Save csv time: ', (t_finish - t_start) / 60)
+        if not os.path.isfile(temp_path_binary):
             d_train = lgb.Dataset(temp_path, label=y_train, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
             print('Save binary: ', temp_path_binary)
             d_train.save_binary(temp_path_binary)
@@ -424,7 +428,8 @@ def train(config, record=True):
     # print(y.index)
     # X = X[:500]
     # y = y[:500]
-    val_errors, train_errors = cross_validate(config, X, y)
+    # val_errors, train_errors = cross_validate(config, X, y)
+    val_errors, train_errors = cv_lgb(config, X, y)
     # Records the cross validation in a json file if needed.
     if record:
         record_cv(config, val_errors, train_errors)

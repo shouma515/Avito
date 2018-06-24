@@ -116,16 +116,22 @@ def tune_single_model_2(parameter_space, config_name, max_evals, trials=None):
     #     }
     def train_wrapper_lgb(params):
         val_errors = []
+        rounds = []
+        model_params = params['model_params']
         for d_train, d_val, y_train, X_val, y_val in cv_datasets:
-            print(params['model_params']['num_boost_round'])
-            model = lgb.train(params['model_params'], d_train, valid_sets=[d_val])
+            model = lgb.train(model_params.copy(), d_train, valid_sets=[d_val])
             print(model.current_iteration())
-            print('validate caculated: %f' %(math.sqrt(mean_squared_error(y_val, model.predict(X_val)))))
-            val_errors.append(math.sqrt(mean_squared_error(y_val, model.predict(X_val))))
+            rounds.append(model.current_iteration())
+            val_pred = model.predict(X_val)
+            np.clip(val_pred, 0, 1, out=val_pred)
+            val_error = math.sqrt(mean_squared_error(y_val, val_pred))
+            print('validate caculated: %f' %val_error)
+            val_errors.append(val_error)
 
         return {
             'loss': np.mean(val_errors),
-            # 'round': len(result['rmse-mean']),
+            'losses': val_errors,
+            'rounds': rounds,
             'status': STATUS_OK,
             'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'params': params

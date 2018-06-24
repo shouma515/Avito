@@ -164,6 +164,9 @@ def generate_feature_pickle(name, train_df, test_df):
             for col in train:
                 train_series, test_series = train[col], test[col]
                 _save_to_pickle(train_series, test_series)
+        else:
+            print('df feature: ', name)
+            _save_df_to_pickle(train, test, name)
 
     print(name, ' feature generated.')
 
@@ -202,6 +205,8 @@ def generate_active_feature_pickle(name, train_df, test_df, train_active_df, tes
             for col in train:
                 train_series, test_series = train[col], test[col]
                 _save_to_pickle(train_series, test_series)
+        else:
+            _save_df_to_pickle(train, test, name)
 
     print(name, ' feature generated.')
 
@@ -209,6 +214,12 @@ def generate_active_feature_pickle(name, train_df, test_df, train_active_df, tes
 # Save a series to picke
 def _save_to_pickle(train, test):
     pickle_path = PICKLE_FOLDER + train.name
+    train.to_pickle(pickle_path)
+    test.to_pickle(pickle_path + '_test')
+
+# Save a series to picke
+def _save_df_to_pickle(train, test, name):
+    pickle_path = PICKLE_FOLDER + name
     train.to_pickle(pickle_path)
     test.to_pickle(pickle_path + '_test')
 
