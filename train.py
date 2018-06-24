@@ -302,7 +302,6 @@ def cv_lgb(config, X, y):
     i = 0
     for d_train, d_val, y_train, X_val, y_val in cv_datasets:
         print('Fold %d' %i)
-        i += 1
         model = lgb.train(model_params.copy(), d_train, valid_sets=[d_val])
         print(model.current_iteration())
         rounds.append(model.current_iteration())
@@ -312,11 +311,12 @@ def cv_lgb(config, X, y):
         print('validate caculated: %f' %val_error)
         val_errors.append(val_error)
 
-        train_pred = model.predict('lgb_temp_%d_%d.bin' %(len(X_val.columns), i))
+        train_pred = model.predict('data/lgb_temp_%d_%d.bin' %(len(X_val.columns), i))
         # np.clip(val_pred, 0, 1, out=val_pred)
         train_error = math.sqrt(mean_squared_error(y_train,train_pred))
         print('validate caculated: %f' %train_error)
         train_errors.append(train_error)
+        i += 1
     return val_errors, train_errors
 
 # Use 25% data to form cv set. Thus, if 5 folds, in every fold, 25/5 = 5%
