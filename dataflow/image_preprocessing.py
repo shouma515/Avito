@@ -7,13 +7,19 @@ import argparse
 import csv
 import io
 import logging
+import operator
+from collections import defaultdict
+
 import numpy as np
+import scipy
+from PIL import Image, ImageStat
+from skimage import feature
 
 import apache_beam as beam
+# import cv2
 from apache_beam.io import ReadFromText, WriteToText
 from apache_beam.metrics import Metrics
 from apache_beam.options.pipeline_options import PipelineOptions, SetupOptions
-from PIL import Image, ImageStat
 from tensorflow.python.framework import errors
 from tensorflow.python.lib.io import file_io
 
@@ -39,6 +45,94 @@ class ProcessImageDoFn(beam.DoFn):
     self.image_counter = Metrics.counter(self.__class__, 'image')
     self.missing_image_counter = Metrics.counter(self.__class__, 'missing_image')
     self.error_processing_image_counter = Metrics.counter(self.__class__, 'error_processing_image')
+
+  def _color_analysis(self, img):
+    # obtain the color palatte of the image 
+    palatte = defaultdict(int)
+    for pixel in img.getdata():
+        palatte[pixel] += 1
+    
+    # sort the colors present in the image 
+    sorted_x = sorted(palatte.items(), key=operator.itemgetter(1), reverse = True)
+    light_shade, dark_shade, shade_count, pixel_limit = 0, 0, 0, 25
+    for i, x in enumerate(sorted_x[:pixel_limit]):
+        if all(xx <= 20 for xx in x[0][:3]): ## dull : too much darkness 
+            dark_shade += x[1]
+        if all(xx >= 240 for xx in x[0][:3]): ## bright : too much whiteness 
+            light_shade += x[1]
+        shade_count += x[1]
+        
+    light_percent = round((float(light_shade)/shade_count)*100, 2)
+    dark_percent = round((float(dark_shade)/shade_count)*100, 2)
+    return light_percent, dark_percent
+
+  def _perform_color_analysis(self, im, flag):
+#     path = images_path + img 
+#     im = IMG.open(path) #.convert("RGB")
+    
+    # cut the images into two halves as complete average may give bias results
+    size = im.size
+    halves = (size[0]/2, size[1]/2)
+    im1 = im.crop((0, 0, size[0], halves[1]))
+    im2 = im.crop((0, halves[1], size[0], size[1]))
+
+    try:
+        light_percent1, dark_percent1 = self._color_analysis(im1)
+        light_percent2, dark_percent2 = self._color_analysis(im2)
+    except Exception:
+        return None
+
+    light_percent = (light_percent1 + light_percent2)/2 
+    dark_percent = (dark_percent1 + dark_percent2)/2 
+    
+    if flag == 'black':
+        return dark_percent
+    elif flag == 'white':
+        return light_percent
+    else:
+        return None
+    
+  def _average_pixel_width(self, im): 
+    im_array = np.asarray(im.convert(mode='L'))
+    edges_sigma1 = feature.canny(im_array, sigma=3)
+    apw = (float(np.sum(edges_sigma1)) / (im.size[0]*im.size[1]))
+    return apw*100
+  
+#   def _get_dominant_color(self, img):
+# #     path = images_path + img 
+# #     img = cv2.imread(path)
+#     img = np.array(img) 
+#     # Convert RGB to BGR 
+#     img = img[:, :, ::-1].copy() 
+#     arr = np.float32(img)
+#     pixels = arr.reshape((-1, 3))
+
+#     n_colors = 5
+#     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 200, .1)
+#     flags = cv2.KMEANS_RANDOM_CENTERS
+#     _, labels, centroids = cv2.kmeans(pixels, n_colors, None, criteria, 10, flags)
+
+#     palette = np.uint8(centroids)
+#     quantized = palette[labels.flatten()]
+#     quantized = quantized.reshape(img.shape)
+
+#     dominant_color = palette[np.argmax(scipy.stats.itemfreq(labels)[:, -1])]
+#     return dominant_color
+  
+  def _get_average_color(self, img):
+    img = np.array(img) 
+    # Convert RGB to BGR 
+    img = img[:, :, ::-1].copy() 
+    average_color = [img[:, :, i].mean() for i in range(img.shape[-1])]
+    return average_color
+  
+  # def _get_blurrness_score(self, image):
+  #   image = np.array(image) 
+  #   # Convert RGB to BGR 
+  #   image = image[:, :, ::-1].copy() 
+  #   image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+  #   fm = cv2.Laplacian(image, cv2.CV_64F).var()
+  #   return fm
 
   def process(self, element):
     """Process an image. Use the image id to read the image from Google cloud
@@ -116,11 +210,30 @@ class ProcessImageDoFn(beam.DoFn):
     lightness_std = lightness.std()
     lightness_avg = lightness.mean()
 
-    yield item_id, image_id, [width, height, width * height,
+    # Dullness and whiteness
+    dullness = self._perform_color_analysis(img, 'black')
+    whiteness = self._perform_color_analysis(img, 'white')
+
+    # Avg pixel width
+    avg_pixel_width = self._average_pixel_width(img)
+
+    # Dominant color
+    # dominant_r, dominant_g, dominant_b = self._get_dominant_color(img)
+
+    # Average color
+    avg_r, avg_g, avg_b = self._get_average_color(img)
+
+    # Blurrness
+    # blurrness = self._get_blurrness_score(img)
+
+    w_h_ratio = width / (height + 1),
+    yield item_id, image_id, [width, height, width * height, w_h_ratio, avg_pixel_width,
                     luminance_min, luminance_max, luminance_avg, luminance_std,
                     saturation_min, saturation_max, saturation_avg, saturation_std,
                     colorfulness,
-                    lightness_min, lightness_max, lightness_avg, lightness_std]
+                    lightness_min, lightness_max, lightness_avg, lightness_std,
+                    dullness, whiteness,
+                    avg_r, avg_g, avg_b]
 
 # VGG16 example
 # def process_image(img, model, input_size, top_n=5):

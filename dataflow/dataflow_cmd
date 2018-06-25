@@ -5,9 +5,9 @@ python dataflow/image_preprocessing.py \
   --staging_location gs://avito-kaggle/staging \
   --temp_location gs://avito-kaggle/temp \
   --input gs://avito-kaggle/test_images.csv \
-  --output gs://avito-kaggle/output/test_images \
+  --output gs://avito-kaggle/output/test_images_more \
   --num_workers 60 \
   --max_num_workers 60 \
   --worker_machine_type n1-highcpu-2 \
   --disk_size_gb 35 \
-#  --requirements_file requirements.txt
+  --requirements_file requirements.txt
