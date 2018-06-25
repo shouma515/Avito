@@ -390,7 +390,7 @@ lightgbm_config = {
             'folds': 3,
             'categorical_feature': [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
             'model_params': {
-                'max_depth': hp.choice('max_depth', [7, 10, 15]),
+                'max_depth': hp.choice('max_depth', [5, 7, 10]),
                 # 'min_hessian': hp.loguniform('min_hessian', -1, 1),
                 # 'bagging_fraction': hp.uniform('bagging_fraction', 0.3, 0.9),
                 # 'bagging_freq': hp.choice('bagging_freq', [0, 10, 50, 100]),
@@ -398,20 +398,20 @@ lightgbm_config = {
                 # 'sub_feature': hp.uniform('sub_feature', 0.05, 0.3),
                 'top_k':  hp.choice('top_k', [25, 50, 75]),
                 'max_bin': hp.choice('max_bin', [255, 350, 500]),
-                'min_data_in_bin': hp.choice('min_data_in_bin', [500, 1000, 1500]),
+                'min_data_in_bin': hp.choice('min_data_in_bin', [250, 500, 1000]),
 
                 'learning_rate': hp.loguniform('learning_rate', -2, -1),
                 'boosting_type': 'gbdt',
                 'objective': 'regression',
                 # 'metric': hp.choice('metric', ['mae', 'mse']),
                 'metric': 'rmse',
-                'num_leaves': hp.choice('num_leaves', [64, 150, 250]),
-                'min_data': hp.choice('min_data', [1000, 1500, 2500]),
+                'num_leaves': hp.choice('num_leaves', [16, 64, 150]),
+                'min_data': hp.choice('min_data', [500, 1000, 1500]),
                 'num_boost_round': 1000,
-                'early_stopping_rounds': 35,
+                'early_stopping_rounds': 50,
                 'verbose': -1
             },
         },
-        'max_evals': 5
+        'max_evals': 30
     }
 }

@@ -370,8 +370,8 @@ def create_cv_for_lgb(config, X, y):
         print(X_val.shape)
         print(y_val.shape)
 
-        temp_path = 'data/lgb_downsp_%d_%d.csv' %(file_code, i)
-        temp_path_binary = 'data/lgb_downsp_%d_%d.bin' %(file_code, i)
+        temp_path = 'data/lgb_dwsp_%d_%d.csv' %(file_code, i)
+        temp_path_binary = 'data/lgb_dwsp_%d_%d.bin' %(file_code, i)
         if not os.path.isfile(temp_path):
             t_start = time.time()
             print('save', temp_path)
