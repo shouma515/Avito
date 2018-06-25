@@ -311,11 +311,11 @@ def cv_lgb(config, X, y):
         print('validate caculated: %f' %val_error)
         val_errors.append(val_error)
 
-        train_pred = model.predict('data/lgb_temp_%d_%d.bin' %(len(X_val.columns), i))
-        # np.clip(val_pred, 0, 1, out=val_pred)
-        train_error = math.sqrt(mean_squared_error(y_train,train_pred))
-        print('validate caculated: %f' %train_error)
-        train_errors.append(train_error)
+        # train_pred = model.predict('data/lgb_temp_%d_%d.bin' %(len(X_val.columns), i))
+        # # np.clip(val_pred, 0, 1, out=val_pred)
+        # train_error = math.sqrt(mean_squared_error(y_train,train_pred))
+        # print('validate caculated: %f' %train_error)
+        # train_errors.append(train_error)
         i += 1
     return val_errors, train_errors
 
