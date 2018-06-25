@@ -16,6 +16,7 @@ import sys
 import time
 import lightgbm as lgb
 from optparse import OptionParser
+from scipy.sparse import hstack, csr_matrix
 
 import numpy as np
 import pandas as pd
@@ -47,24 +48,28 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
     DATA_LENTH = TEST_SIZE if test else TRAIN_SIZE
 
     features = []
-    total_feature = 0
+    bow_features = []
     for name in feature_names:
         # Assume all the feature pickles are generated. Any features not
         # generated will cause an error here.
         pickle_path = PICKLE_FOLDER + name
         if test:
             pickle_path += '_test'
-        feature = pd.read_pickle(pickle_path)
+        if 'bow' in name:
+            print('bow', name)
+            with open(pickle_path, 'rb') as f:
+                feature = pickle.load(f)
+            bow_features.append(feature)
+        else:
+            feature = pd.read_pickle(pickle_path)
+            if isinstance(feature, pd.DataFrame):
+                feature.reset_index(drop=True, inplace=True)
+            else:
+                print(name, feature.dtype)
+            features.append(feature)
         # Sanity check
         assert(feature.shape[0] == DATA_LENTH)
-        if isinstance(feature, pd.DataFrame):
-            total_feature += feature.shape[1]
-            feature.reset_index(drop=True, inplace=True)
-        else:
-            # Series
-            total_feature += 1
-
-        features.append(feature)
+        
 
     # Add image features.
     if len(image_feature_folders) > 0:
@@ -83,38 +88,37 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
         image_features.drop('item_id', axis=1, inplace=True)
         # Sanity check
         assert(image_features.shape[0] == DATA_LENTH)
-        total_feature += image_features.shape[1]
         features.append(image_features)
 
     X = pd.concat(features, axis=1)
-    # Lightgbm dataset from csv need all columns to be numerical.
+    # Sparse matrix need all columns to be numeric.
     for col in X.columns:
         if X[col].dtype == bool:
             X[col] = X[col].astype(np.int8)
+    X = hstack([csr_matrix(X.values),*bow_features])
+
     y = None
     if not test:
         y = pd.read_pickle(TARGET_PATH)
 
 
     # Sanity check
-    print(X.shape)
-    print(str(DATA_LENTH), str(total_feature))
-    assert(X.shape == (DATA_LENTH, total_feature))
+    assert(X.shape[0] == DATA_LENTH)
     print("Data size:", X.shape)
     if not test:
         assert(y.shape == (TRAIN_SIZE,))
         print("Label size:", y.shape)
 
-    # Debug info
-    print(X.columns)
-    print(X.shape)
-    if not test:
-        print(y.name)
-        print(y.shape)
+    # # Debug info
+    # print(X.columns)
+    # print(X.shape)
+    # if not test:
+    #     print(y.name)
+    #     print(y.shape)
 
-    # Memory usage
-    # X = reduce_mem_usage(X)
-    print('Memory usage of training data is {:.2f} MB'.format(X.memory_usage().sum() / 1024**2))
+    # # Memory usage
+    # # X = reduce_mem_usage(X)
+    # print('Memory usage of training data is {:.2f} MB'.format(X.memory_usage().sum() / 1024**2))
 
     return X, y
 
@@ -310,13 +314,7 @@ def cv_lgb(config, X, y):
         val_error = math.sqrt(mean_squared_error(y_val, val_pred))
         print('validate caculated: %f' %val_error)
         val_errors.append(val_error)
-
-        train_pred = model.predict('data/lgb_temp_%d_%d.bin' %(len(X_val.columns), i))
-        # np.clip(val_pred, 0, 1, out=val_pred)
-        train_error = math.sqrt(mean_squared_error(y_train,train_pred))
-        print('validate caculated: %f' %train_error)
-        train_errors.append(train_error)
-        i += 1
+    
     return val_errors, train_errors
 
 # Use 25% data to form cv set. Thus, if 5 folds, in every fold, 25/5 = 5%
@@ -324,13 +322,12 @@ def cv_lgb(config, X, y):
 def create_cv_for_lgb(config, X, y):
     folds = config['folds']
     categorical_feature = config['categorical_feature']
-    file_code = len(X.columns)
     # Each cv has a 90%/10% split.
     cv_percent = folds * 0.1
 
     # Split a part of data to form cv set, other data will be used in all
     # trains.
-    total = len(X)
+    total = X.shape[0]
     idx = list(range(total))
     random.seed(42)
     random.shuffle(idx)
@@ -359,20 +356,20 @@ def create_cv_for_lgb(config, X, y):
         print(X_val.shape)
         print(y_val.shape)
 
-        temp_path = 'data/lgb_temp_%d_%d.csv' %(file_code, i)
-        temp_path_binary = 'data/lgb_temp_%d_%d.bin' %(file_code, i)
-        if not os.path.isfile(temp_path):
-            t_start = time.time()
-            print('save', temp_path)
-            X_train.to_csv(temp_path, header=False)
-            t_finish = time.time()
-            print('Save csv time: ', (t_finish - t_start) / 60)
-        if not os.path.isfile(temp_path_binary):
-            d_train = lgb.Dataset(temp_path, label=y_train, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
-            print('Save binary: ', temp_path_binary)
-            d_train.save_binary(temp_path_binary)
-        d_train = lgb.Dataset(temp_path_binary, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
-        d_val = lgb.Dataset(X_val, label=y_val, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
+        # temp_path = 'data/lgb_temp_%d_%d.csv' %(file_code, i)
+        # temp_path_binary = 'data/lgb_temp_%d_%d.bin' %(file_code, i)
+        # if not os.path.isfile(temp_path):
+        #     t_start = time.time()
+        #     print('save', temp_path)
+        #     X_train.to_csv(temp_path, header=False)
+        #     t_finish = time.time()
+        #     print('Save csv time: ', (t_finish - t_start) / 60)
+        # if not os.path.isfile(temp_path_binary):
+        #     d_train = lgb.Dataset(temp_path, label=y_train, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
+        #     print('Save binary: ', temp_path_binary)
+        #     d_train.save_binary(temp_path_binary)
+        d_train = lgb.Dataset(X_train, categorical_feature=categorical_feature, free_raw_data=False)
+        d_val = lgb.Dataset(X_val, label=y_val, categorical_feature=categorical_feature, free_raw_data=False)
         cv_datasets.append((d_train, d_val, y_train, X_val, y_val))
     return cv_datasets
 
