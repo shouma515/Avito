@@ -291,7 +291,36 @@ def record_cv(
 
 # Returns two array containing validation and train errors of each fold.
 def cross_validate(config, X, y):
-    return cross_validate_strategy_1(config, X, y, config['folds'] * 0.05)
+    v1, t1 = cross_validate_sparse(config, X, y, 23)
+    v2, t2 = cross_validate_sparse(config, X, y, 42)
+    return [v1, v2], [t1, t2]
+
+def cross_validate_sparse(config, X, y, random_state=23):
+    categorical_feature = config['categorical_feature']
+    model_params = config['model_params']
+    X_train, X_valid, y_train, y_valid = train_test_split(
+        X, y, test_size=0.10, random_state=random_state)
+
+    # LGBM Dataset Formatting
+    lgtrain = lgb.Dataset(X_train, y_train,
+                    categorical_feature = categorical)
+    lgvalid = lgb.Dataset(X_valid, y_valid,
+                    categorical_feature = categorical)
+    # del X, X_train; gc.collect()
+
+    # Go Go Go
+    lgb_clf = lgb.train(
+        model_params.copy(),
+        lgtrain,
+        valid_sets=[lgtrain, lgvalid],
+        valid_names=['train','valid'],
+    )
+    train_error = np.sqrt(metrics.mean_squared_error(y_train, lgb_clf.predict(X_train)))
+    val_error = np.sqrt(metrics.mean_squared_error(y_valid, lgb_clf.predict(X_valid)))
+    print('Train RMSE:', train_error)
+    print('Test RMSE:', val_error)
+    return val_error, train_error
+
 
 def cross_validate_strategy_0(config, X, y):
     model_name = config['model']
