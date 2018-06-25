@@ -43,7 +43,7 @@ MODEL_PICKLE_FOLDER = RECORD_FOLDER + 'model/'
 #   2. Order of training data should not be changed if you want to
 #      compare result between trainings, as cross validation depends
 #      on that.
-def prepare_data(feature_names, image_feature_folders=[], test=False):
+def prepare_data(feature_names, image_feature_folders=[], test=False, num_slice=0, num_splits=10, downsample=True):
     DATA_LENTH = TEST_SIZE if test else TRAIN_SIZE
 
     features = []
@@ -105,11 +105,22 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
         assert(y.shape == (TRAIN_SIZE,))
         print("Label size:", y.shape)
 
-    # Debug info
-    print(X.columns)
-    print(X.shape)
-    if not test:
-        print(y.name)
+    # # Debug info
+    # print(X.columns)
+    # print(X.shape)
+    # if not test:
+    #     print(y.name)
+    #     print(y.shape)
+    # Downsample training data to balance zero counts.
+    if (not test) and downsample:
+        zero_indices = X[y == 0].index.values
+        random.Random(42).shuffle(zero_indices)
+        split_indices = np.array_split(zero_indices, num_splits)
+        remove_indices = list(set(zero_indices) - set(split_indices[num_slice]))
+        X.drop(X.index[remove_indices], inplace=True)
+        y.drop(y.index[remove_indices], inplace=True)
+        print('downsampling:')
+        print(X.shape)
         print(y.shape)
 
     # Memory usage
@@ -359,8 +370,8 @@ def create_cv_for_lgb(config, X, y):
         print(X_val.shape)
         print(y_val.shape)
 
-        temp_path = 'data/lgb_temp_%d_%d.csv' %(file_code, i)
-        temp_path_binary = 'data/lgb_temp_%d_%d.bin' %(file_code, i)
+        temp_path = 'data/lgb_downsp_%d_%d.csv' %(file_code, i)
+        temp_path_binary = 'data/lgb_downsp_%d_%d.bin' %(file_code, i)
         if not os.path.isfile(temp_path):
             t_start = time.time()
             print('save', temp_path)

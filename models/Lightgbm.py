@@ -29,8 +29,8 @@ class Lightgbm():
     def fit(self, X_train, y_train):
         categorical_feature = self.data_params['categorical_feature']
         hash_code = len(X_train.columns)
-        temp_path = 'data/lgb_fit_temp_%d.csv' %hash_code
-        temp_path_binary = 'data/lgb_fit_temp_%d.bin' %hash_code
+        temp_path = 'data/lgb_downsp_%d.csv' %hash_code
+        temp_path_binary = 'data/lgb_downsp_%d.bin' %hash_code
         print(X_train.shape)
         if not os.path.isfile(temp_path):
             t_start = time.time()
