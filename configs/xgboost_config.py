@@ -299,6 +299,6 @@ xgboost_config = {
                 'silent': 1
             },
         },
-        'max_evals': 15
+        'max_evals': 2
     }
 }

@@ -184,7 +184,7 @@ def load_image_feature(folder, test):
 # Retrieves the model class from model map and creates an instance of it.
 def get_model(model_name, model_params, data_params=None):
     return model_map[model_name](
-        model_params=model_params, data_params=data_params)
+        model_params=model_params)
 
 
 # TODO: figure out query json file for analysis.
