@@ -10,7 +10,15 @@ class CatBoost():
     def fit(self, X_train, y_train, X_val, y_val):
         cat_features = self.data_params['categorical_feature']
         # X_train.fillna(-999, inplace=True)
-        return self.model.fit(X_train, y_train, cat_features=list(cat_features), eval_set=[(X_val, y_val)])
+        dtrain = CatBoost.Pool(X_train, y_train, cat_features=list(cat_features), feature_names=X_train.columns)
+        # X_train.fillna(-999, inplace=True)
+        return self.model.fit(dtrain)
+
+    def fit_predict(self, X_train, y_train):
+        cat_features = self.data_params['categorical_feature']
+        dtrain = CatBoost.Pool(X_train, y_train, cat_features=list(cat_features), feature_names=X_train.columns)
+        # X_train.fillna(-999, inplace=True)
+        return self.model.fit(dtrain)
 
     def predict(self, X):
         """ Predict on the given X, need to call fit first

@@ -97,16 +97,14 @@ catboost_config = {
     'model': 'catboost',
     'categorical_feature': [0,1,4,5,7,8,9,10],
     'model_params': {
-            'depth': 2,
-            'eval_metric': 'RMSE',
-            'iterations': 300,
-            'l2_leaf_reg': 3,
-            # 'learning_rate': 0.2118306337399935,
-            'loss_function': 'RMSE',
-            'random_seed': 42,
-            'od_type': 'Iter',
-            'od_wait': 15,
-            'verbose': False,
+      'depth': 7,
+      'eval_metric': 'RMSE',
+      'iterations': 200,
+      'l2_leaf_reg': 5,
+      'learning_rate': 0.5335105081584713,
+      'loss_function': 'RMSE', 
+      'random_seed': 42, 
+      'verbose': False
     },
     'tune_params': {
         'param_space': {

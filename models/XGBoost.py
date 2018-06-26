@@ -18,7 +18,7 @@ class XGBoost():
             }
         if train_params is None:
             train_params = {
-                'num_boost_round': 250
+                'num_boost_round': 50
             }
         self.model_params = model_params
         self.train_params = train_params

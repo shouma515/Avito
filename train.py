@@ -449,8 +449,8 @@ def predict(config, cv=True):
         record_cv(config, val_errors, train_errors, sub_timestamp)
 
     print('training on entire dataset...')
-    model = get_model(model_name, model_params)
-    model.fit(X_train, y_train)
+    model = get_model(model_name, model_params, config)
+    model.fit_predict(X_train, y_train)
     rmse = math.sqrt(mean_squared_error(y_train, model.predict(X_train)))
     print('training error: ', rmse)
 
