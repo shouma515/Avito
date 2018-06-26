@@ -372,35 +372,46 @@ def item_seq_number_below_hundred(train, test):
     return train['item_seq_number'] < 100, test['item_seq_number'] < 100
 
 # BOW features
-def bow_title_1(train, test):
-    count_vectorizer_title = CountVectorizer(
-        stop_words=stopwords.words('russian'), lowercase=True,
-        max_df=0.7, max_features=150)
-    title_counts = count_vectorizer_title.fit_transform(train['title'].append(test['title']))
+# def bow_title_1(train, test):
+#     count_vectorizer_title = CountVectorizer(
+#         stop_words=stopwords.words('russian'), lowercase=True,
+#         max_df=0.7, max_features=150)
+#     title_counts = count_vectorizer_title.fit_transform(train['title'].append(test['title']))
 
-    train_result = pd.DataFrame(title_counts[:len(train)].todense())
-    test_result =  pd.DataFrame(title_counts[len(train):].todense())
-    train_result.rename(lambda x: 'title_' + str(x), axis=1, inplace=True)
-    test_result.rename(lambda x: 'title_' + str(x), axis=1, inplace=True)
+#     train_result = pd.DataFrame(title_counts[:len(train)].todense())
+#     test_result =  pd.DataFrame(title_counts[len(train):].todense())
+#     train_result.rename(lambda x: 'title_' + str(x), axis=1, inplace=True)
+#     test_result.rename(lambda x: 'title_' + str(x), axis=1, inplace=True)
 
-    return train_result, test_result
+#     return train_result, test_result
 
-def bow_desc_1(train, test):
-    count_vectorizer_desc = TfidfVectorizer(
-        lowercase=True, ngram_range=(1, 2),
-        max_features=150)
-    train_d = train['description'].astype(str).map(_normalize_text_remove_digits)
-    test_d = test['description'].astype(str).map(_normalize_text_remove_digits)
+# def bow_desc_1(train, test):
+#     count_vectorizer_desc = TfidfVectorizer(
+#         lowercase=True, ngram_range=(1, 2),
+#         max_features=150)
+#     train_d = train['description'].astype(str).map(_normalize_text_remove_digits)
+#     test_d = test['description'].astype(str).map(_normalize_text_remove_digits)
 
-    desc_counts = count_vectorizer_desc.fit_transform(train_d.append(test_d))
+#     desc_counts = count_vectorizer_desc.fit_transform(train_d.append(test_d))
 
-    train_result = pd.DataFrame(desc_counts[:len(train)].todense())
-    test_result =  pd.DataFrame(desc_counts[len(train):].todense())
-    train_result.rename(lambda x: 'desc_' + str(x), axis=1, inplace=True)
-    test_result.rename(lambda x: 'desc_' + str(x), axis=1, inplace=True)
+#     train_result = pd.DataFrame(desc_counts[:len(train)].todense())
+#     test_result =  pd.DataFrame(desc_counts[len(train):].todense())
+#     train_result.rename(lambda x: 'desc_' + str(x), axis=1, inplace=True)
+#     test_result.rename(lambda x: 'desc_' + str(x), axis=1, inplace=True)
 
-    return train_result, test_result
+#     return train_result, test_result
 
+def price_item_seq_number_ratio(train, test):
+    return _ratio_helper(price, item_seq_number, train, test, 0)
+
+def log_item_seq_number(train, test):
+    return np.log(train['item_seq_number']), np.log(test['item_seq_number'])
+
+def price_log_item_seq_ratio(train, test):
+    return _ratio_helper(price, log_item_seq_number, train, test, 0)
+
+def log_price_log_item_seq_ratio(train, test):
+    return _ratio_helper(log_price, log_item_seq_number, train, test, 0)
 
 def _embedding_features(df, embeddings_index, pca_dim):
     # df = df_main[['title','description']].copy()
