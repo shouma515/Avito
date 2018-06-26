@@ -57,7 +57,7 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
         if test:
             pickle_path += '_test'
         if 'bow' in name:
-            print('bow', name)
+            # print('bow', name)
             with open(pickle_path, 'rb') as f:
                 feature = pickle.load(f)
             bow_features.append(feature)
@@ -65,8 +65,6 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
             feature = pd.read_pickle(pickle_path)
             if isinstance(feature, pd.DataFrame):
                 feature.reset_index(drop=True, inplace=True)
-            else:
-                print(name, feature.dtype)
             features.append(feature)
         # Sanity check
         assert(feature.shape[0] == DATA_LENTH)
