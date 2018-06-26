@@ -92,6 +92,7 @@ lightgbm_config_feature_list = [
     'region+parent_category_name+param_1-price-mean',
     'param_1-price-mean',
     'region+param_1-counts',
+    'embedding',
     'bow_desc',
     'bow_title'
 ]
@@ -150,7 +151,7 @@ lightgbm_config = {
     'metric': 'rmse',
     'min_data': 1500,
     'min_data_in_bin': 1000,
-    'num_boost_round': 2500,
+    'num_boost_round': 5000,
     'num_leaves': 64,
     'objective': 'regression',
     'sub_feature': 0.1,
