@@ -123,3 +123,6 @@ data/
 
 # Image features
 image*
+
+# Catboost info
+catboost_info/
