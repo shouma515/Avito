@@ -296,7 +296,7 @@ def cross_validate_strategy_1(config, X, y):
         print(y_val.shape)
 
         print('training...')
-        model.fit(X_train, y_train, X_val, y_val)
+        model.fit(X_train, y_train)
         train_rmse = math.sqrt(
             mean_squared_error(y_train, model.predict(X_train)))
         print('training error: ', train_rmse)
