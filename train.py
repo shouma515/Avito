@@ -17,6 +17,7 @@ import time
 import lightgbm as lgb
 from optparse import OptionParser
 from scipy.sparse import hstack, csr_matrix
+from sklearn.model_selection import train_test_split
 
 import numpy as np
 import pandas as pd
@@ -192,40 +193,35 @@ def record_cv(
 
 # Returns two array containing validation and train errors of each fold.
 def cross_validate(config, X, y):
-    return cross_validate_strategy_1(config, X, y, config['folds'] * 0.05)
+    v1, t1 = cross_validate_sparse(config, X, y, 23)
+    v2, t2 = cross_validate_sparse(config, X, y, 42)
+    return [v1, v2], [t1, t2]
 
-def cross_validate_strategy_0(config, X, y):
-    model_name = config['model']
+def cross_validate_sparse(config, X, y, random_state=23):
+    categorical_feature = config['categorical_feature']
     model_params = config['model_params']
-    folds = config['folds']
+    X_train, X_valid, y_train, y_valid = train_test_split(
+        X, y, test_size=0.10, random_state=random_state)
 
-    kf = KFold(n_splits=folds, shuffle=True, random_state=42)
+    # LGBM Dataset Formatting
+    lgtrain = lgb.Dataset(X_train, y_train,
+                    categorical_feature = categorical_feature)
+    lgvalid = lgb.Dataset(X_valid, y_valid,
+                    categorical_feature = categorical_feature)
+    # del X, X_train; gc.collect()
 
-    train_errors = []
-    val_errors = []
-    for i, (train_index, val_index) in enumerate(kf.split(X, y)):
-        print('Fold ', i)
-
-        X_train, y_train = X.iloc[train_index], y.iloc[train_index]
-        X_val,y_val = X.iloc[val_index], y.iloc[val_index]
-
-        print('training...')
-        model = get_model(model_name, model_params, {'fold': i})
-        model.fit(X_train, y_train)
-        train_rmse = math.sqrt(
-            mean_squared_error(y_train, model.predict(X_train)))
-        print('training error: ', train_rmse)
-        train_errors.append(train_rmse)
-
-        print('validating...')
-        rmse = math.sqrt(mean_squared_error(y_val, model.predict(X_val)))
-        print('validation error: ', rmse)
-        val_errors.append(rmse)
-
-        print('-----------------------------------------')
-
-    print('\nAvg validation error: ', np.mean(val_errors))
-    return val_errors, train_errors
+    # Go Go Go
+    lgb_clf = lgb.train(
+        model_params.copy(),
+        lgtrain,
+        valid_sets=[lgtrain, lgvalid],
+        valid_names=['train','valid'],
+    )
+    train_error = np.sqrt(mean_squared_error(y_train, lgb_clf.predict(X_train)))
+    val_error = np.sqrt(mean_squared_error(y_valid, lgb_clf.predict(X_valid)))
+    print('Train RMSE:', train_error)
+    print('Test RMSE:', val_error)
+    return val_error, train_error
 
 # Use 25% data to form cv set. Thus, if 5 folds, in every fold, 25/5 = 5%
 # will be used as validate, other 95% will be used for train.
@@ -426,7 +422,7 @@ def train(config, record=True):
     # X = X[:500]
     # y = y[:500]
     # val_errors, train_errors = cross_validate(config, X, y)
-    val_errors, train_errors = cv_lgb(config, X, y)
+    val_errors, train_errors = cross_validate(config, X, y)
     # Records the cross validation in a json file if needed.
     if record:
         record_cv(config, val_errors, train_errors)
