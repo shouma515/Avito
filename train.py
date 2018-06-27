@@ -60,6 +60,7 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
         assert(feature.shape[0] == DATA_LENTH)
         if isinstance(feature, pd.DataFrame):
             total_feature += feature.shape[1]
+            feature.reset_index(drop=True, inplace=True)
         else:
             # Series
             total_feature += 1
@@ -93,11 +94,11 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
 
 
     # Sanity check
-    assert(X.shape == (DATA_LENTH, total_feature))
     print("Data size:", X.shape)
+    assert(X.shape == (DATA_LENTH, total_feature))
     if not test:
-        assert(y.shape == (TRAIN_SIZE,))
         print("Label size:", y.shape)
+        assert(y.shape == (TRAIN_SIZE,))
 
     # Debug info
     print(X.columns)
