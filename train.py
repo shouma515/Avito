@@ -68,7 +68,7 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
             features.append(feature)
         # Sanity check
         assert(feature.shape[0] == DATA_LENTH)
-        
+
 
     # Add image features.
     if len(image_feature_folders) > 0:
@@ -191,9 +191,9 @@ def record_cv(
 
 # Returns two array containing validation and train errors of each fold.
 def cross_validate(config, X, y):
-    v1, t1 = cross_validate_sparse(config, X, y, 23)
-    v2, t2 = cross_validate_sparse(config, X, y, 42)
-    return [v1, v2], [t1, t2]
+    v1, t1, r1 = cross_validate_sparse(config, X, y, 23)
+    v2, t2, r2 = cross_validate_sparse(config, X, y, 42)
+    return [v1, v2], [t1, t2], [r1, r2]
 
 def cross_validate_sparse(config, X, y, random_state=23):
     categorical_feature = config['categorical_feature']
@@ -217,10 +217,37 @@ def cross_validate_sparse(config, X, y, random_state=23):
     )
     train_error = np.sqrt(mean_squared_error(y_train, lgb_clf.predict(X_train)))
     val_error = np.sqrt(mean_squared_error(y_valid, lgb_clf.predict(X_valid)))
+    print('Round:', lgb_clf.current_iteration())
     print('Train RMSE:', train_error)
     print('Test RMSE:', val_error)
-    return val_error, train_error
+    return val_error, train_error, lgb_clf.current_iteration()
 
+def cross_validate_sparse_predict(config, X, y, random_state=23):
+    categorical_feature = config['categorical_feature']
+    model_params = config['model_params']
+    X_train, X_valid, y_train, y_valid = train_test_split(
+        X, y, test_size=0.10, random_state=random_state)
+
+    # LGBM Dataset Formatting
+    lgtrain = lgb.Dataset(X_train, y_train,
+                    categorical_feature = categorical_feature)
+    lgvalid = lgb.Dataset(X_valid, y_valid,
+                    categorical_feature = categorical_feature)
+    # del X, X_train; gc.collect()
+
+    # Go Go Go
+    lgb_clf = lgb.train(
+        model_params.copy(),
+        lgtrain,
+        valid_sets=[lgtrain, lgvalid],
+        valid_names=['train','valid'],
+    )
+    train_error = np.sqrt(mean_squared_error(y_train, lgb_clf.predict(X_train)))
+    val_error = np.sqrt(mean_squared_error(y_valid, lgb_clf.predict(X_valid)))
+    print('Round:', lgb_clf.current_iteration())
+    print('Train RMSE:', train_error)
+    print('Test RMSE:', val_error)
+    return val_error, train_error, lgb_clf
 # Use 25% data to form cv set. Thus, if 5 folds, in every fold, 25/5 = 5%
 # will be used as validate, other 95% will be used for train.
 def cross_validate_strategy_1(config, X, y, cv_percent):
@@ -308,7 +335,7 @@ def cv_lgb(config, X, y):
         val_error = math.sqrt(mean_squared_error(y_val, val_pred))
         print('validate caculated: %f' %val_error)
         val_errors.append(val_error)
-    
+
     return val_errors, train_errors
 
 # Use 25% data to form cv set. Thus, if 5 folds, in every fold, 25/5 = 5%
@@ -420,7 +447,7 @@ def train(config, record=True):
     # X = X[:500]
     # y = y[:500]
     # val_errors, train_errors = cross_validate(config, X, y)
-    val_errors, train_errors = cross_validate(config, X, y)
+    val_errors, train_errors, rounds = cross_validate(config, X, y)
     # Records the cross validation in a json file if needed.
     if record:
         record_cv(config, val_errors, train_errors)
@@ -442,19 +469,23 @@ def predict(config, cv=True):
     sub_timestamp = datetime.datetime.now().strftime("%m-%d_%H:%M:%S")
 
     # Cross-validates with the config to record the local validation errors.
-    if cv:
-        print('Cross validating and recording local cv result...')
-        val_errors, train_errors = cross_validate(config, X_train, y_train)
-        record_cv(config, val_errors, train_errors, sub_timestamp)
+    # if cv:
+    #     print('Cross validating and recording local cv result...')
+    #     val_errors, train_errors = cross_validate(config, X_train, y_train)
+    #     record_cv(config, val_errors, train_errors, sub_timestamp)
 
-    print('training on entire dataset...')
-    model = get_model(model_name, model_params, config)
-    model.fit(X_train, y_train)
-    rmse = math.sqrt(mean_squared_error(y_train, model.predict(X_train)))
-    print('training error: ', rmse)
+    # print('training on entire dataset...')
+    # model = get_model(model_name, model_params, config)
+    # model.fit(X_train, y_train)
+    # rmse = math.sqrt(mean_squared_error(y_train, model.predict(X_train)))
+    # print('training error: ', rmse)
+    v1, t1, m1 = cross_validate_sparse_predict(config, X_train, y_train, 23)
+    v2, t2, m2 = cross_validate_sparse_predict(config, X_train, y_train, 42)
 
     print('predicting...')
-    prediction = model.predict(X_test)
+    p1 = m1.predict(X_test)
+    p2 = m2.predict(X_test)
+    prediction = (p1 + p2) / 2
     # Clips predictions to be between 0 and 1.
     np.clip(prediction, 0, 1, out=prediction)
     # Sanity check.
@@ -492,11 +523,17 @@ def predict(config, cv=True):
         'wb')
     pickle.dump(submission_history, sub_history_file)
 
-    model_file = open(
+    m1_file = open(
         '%s%s_%s' %(
-            MODEL_PICKLE_FOLDER, config['name'], sub_timestamp),
+            MODEL_PICKLE_FOLDER, config['name'], sub_timestamp+'_01'),
         'wb')
-    pickle.dump(model, model_file)
+    pickle.dump(m1, m1_file)
+
+    m2_file = open(
+        '%s%s_%s' %(
+            MODEL_PICKLE_FOLDER, config['name'], sub_timestamp+'_02'),
+        'wb')
+    pickle.dump(m2, m2_file)
     # TODO: use kaggle cmd line api to submit and get result.
     # TODO: centralize records, now we have cv records (in json) and
     #       submission history (in pickle).

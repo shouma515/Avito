@@ -49,13 +49,13 @@ TEST_SIZE = 508438
 def generate_active_raw():
     train_active_df = pd.read_csv('data/train_active.csv', parse_dates=['activation_date'])
     train_active_df['description'].to_pickle(PICKLE_FOLDER + 'description_active')
-    # train_active_df['title'].to_pickle(PICKLE_FOLDER + 'title_active')
+    train_active_df['title'].to_pickle(PICKLE_FOLDER + 'title_active')
     del train_active_df
     print('train active raw generated')
 
     test_active_df = pd.read_csv('data/test_active.csv', parse_dates=['activation_date'])
     test_active_df['description'].to_pickle(PICKLE_FOLDER + 'description_active_test')
-    # test_active_df['title'].to_pickle(PICKLE_FOLDER + 'title_active_test')
+    test_active_df['title'].to_pickle(PICKLE_FOLDER + 'title_active_test')
     del test_active_df
     print('test active raw generated')
 
@@ -143,9 +143,9 @@ def _normalize_text(text):
 
 
 def main():
-    # generate_active_raw()
+    generate_active_raw()
     generate_desc_bow()
-    # generate_title_bow()
+    generate_title_bow()
 
 if __name__ == '__main__':
     main()

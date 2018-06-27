@@ -30,52 +30,38 @@ TRIALS_FOLDER = 'trials/'
 def tune_single_model(parameter_space, config_name, max_evals, trials=None):
     # Prepare train data.
     X, y = prepare_data(parameter_space['features'], parameter_space['image_feature_folders'], test=False)
-    categorical_feature = parameter_space['categorical_feature']
-    hash_code = -hash(','.join(parameter_space['features']))
-    temp_path = 'data/lgb_fit_temp_%d.csv' %hash_code
-    temp_path_binary = 'data/lgb_fit_temp_%d.bin' %hash_code
-    if not os.path.isfile(temp_path_binary):
-        t_start = time.time()
-        print('save', temp_path)
-        X.to_csv(temp_path, header=False)
-        t_finish = time.time()
-        print('Save csv time: ', (t_finish - t_start) / 60)
-        X_y = lgb.Dataset(temp_path, label=y, feature_name=list(X.columns), categorical_feature=categorical_feature, free_raw_data=False)
-        X_y.save_binary(temp_path_binary)
-    else:
-        X_y = lgb.Dataset(temp_path_binary, categorical_feature=categorical_feature, free_raw_data=False)
-    del X, y
-    gc.collect()
-    # def train_wrapper(params):
-    #     cv_losses, cv_train_losses = cross_validate(params, X, y)
-    #     # return an object to be recorded in hyperopt trials for future uses
-    #     return {
-    #         'loss': np.mean(cv_losses),
-    #         'train_loss': np.mean(cv_train_losses),
-    #         'status': STATUS_OK,
-    #         'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-    #         'params': params
-    #     }
-    def train_wrapper_lgb(params):
-        result = lgb.cv(params['model_params'], X_y)
-        # print(result)
-        print(len(result['rmse-mean']))
-        print(result['rmse-mean'][-1])
+    def train_wrapper(params):
+        cv_losses, cv_train_losses, rounds = cross_validate(params, X, y)
         # return an object to be recorded in hyperopt trials for future uses
         return {
-            'loss': result['rmse-mean'][-1],
-            'round': len(result['rmse-mean']),
+            'loss': np.mean(cv_losses),
+            'val_losses': cv_losses,
+            'train_loss': cv_train_losses,
+            'rounds': rounds,
             'status': STATUS_OK,
             'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             'params': params
         }
+    # def train_wrapper_lgb(params):
+    #     result = lgb.cv(params['model_params'], X_y)
+    #     # print(result)
+    #     print(len(result['rmse-mean']))
+    #     print(result['rmse-mean'][-1])
+    #     # return an object to be recorded in hyperopt trials for future uses
+    #     return {
+    #         'loss': result['rmse-mean'][-1],
+    #         'round': len(result['rmse-mean']),
+    #         'status': STATUS_OK,
+    #         'eval_time': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+    #         'params': params
+    #     }
 
     if trials is None:
         trials = Trials()
     t1 = time.time()
     timestamp = datetime.now().strftime("%m-%d_%H:%M:%S")
     try:
-        best = fmin(train_wrapper_lgb, parameter_space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
+        best = fmin(train_wrapper, parameter_space, algo=tpe.suggest, max_evals=max_evals, trials=trials)
     except KeyboardInterrupt:
         pass
     finally:
@@ -183,7 +169,7 @@ def main():
         print('Using trials: %s' %trials_path)
 
     tune_params = config['tune_params']
-    tune_single_model_2(
+    tune_single_model(
         tune_params['param_space'],
         options.config_name,
         tune_params['max_evals'],
