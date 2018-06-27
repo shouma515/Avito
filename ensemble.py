@@ -48,7 +48,7 @@ def ensemble_for_lgb(config, X, y):
             d_train.save_binary(temp_path_binary)
         d_train = lgb.Dataset(temp_path_binary, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
         d_val = lgb.Dataset(X_val, label=y_val, feature_name=list(X_train.columns), categorical_feature=categorical_feature, free_raw_data=False)
-        model = lgb.train(model_params.copy(), d_train, valid_sets=[d_val])
+        model = lgb.train(model_params.copy(), d_train, valid_sets=[d_train, d_val], valid_names=['train','valid'])
         predict = model.predict(X_val)
         np.clip(predict, 0, 1, out=predict)
 
