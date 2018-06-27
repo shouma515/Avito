@@ -19,17 +19,21 @@ import numpy as np
 from hyperopt import STATUS_OK, Trials, fmin, hp, space_eval, tpe
 
 from configs import config_map
-from feature_generator import TARGET_PATH
+from feature_generator import PICKLE_FOLDER, TARGET_PATH
 
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import KFold
 from sklearn.metrics import mean_squared_error
 import math
 
+
 TRIALS_FOLDER = 'ensemble/trials/'
 ENSEMBLE_FOLDER = 'ensemble/'
+TRAIN_SIZE = 1503424
+TEST_SIZE = 508438
+SUBMISSION_FOLDER = 'submissions/'
 
-def cross_validate(X, y):
+def cross_validate(X, y, X_test):
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
 
     train_errors = []
@@ -56,7 +60,36 @@ def cross_validate(X, y):
         print('-----------------------------------------')
 
     print('\nAvg validation error: ', np.mean(val_errors))
+
+    # Submission
+    model = LinearRegression()
+    model.fit(X, y)
+
+    rmse = math.sqrt(mean_squared_error(y, model.predict(X)))
+    print('training error: ', rmse)
+
+    print('predicting...')
+    prediction = model.predict(X_test)
+    # Clips predictions to be between 0 and 1.
+    np.clip(prediction, 0, 1, out=prediction)
+    # Sanity check.
+    assert(len(prediction) == TEST_SIZE)
+
+    submission = pd.read_csv('data/sample_submission.csv')
+    # Sample submission file and test dataset has the same item_id
+    # in the same order.
+    submission['deal_probability'] = prediction
+
+    if not os.path.exists(SUBMISSION_FOLDER):
+        os.makedirs(SUBMISSION_FOLDER)
+
+    submission.to_csv(
+        '%slinear_ensemble.csv' %SUBMISSION_FOLDER,
+        index=False
+    )
+
     return val_errors, train_errors
+
 
 def tune_single_model(parameter_space, config_name, max_evals, trials=None):
     # Prepare train data.
@@ -102,21 +135,42 @@ def tune_single_model(parameter_space, config_name, max_evals, trials=None):
     return trials
 
 def main():
-    ensemble_csv = ['catboost.csv', 'lgb.csv', 'xgboost.csv']
-    X = pd.read_csv(ENSEMBLE_FOLDER + ensemble_csv[0])
-    for i in range(1, len(ensemble_csv)):
-        pred = pd.read_csv(ENSEMBLE_FOLDER + ensemble_csv[1])
-        X = X.merge(pred, 'left', on='item_id', suffixes=('', str(i)))
+    ensemble_csv = [
+        'catboost.csv',
+        'lgb_sparse.csv',
+        # 'lgb.csv',
+        # 'xgboost.csv'
+    ]
+    ensemble_pred_csv = [
+        'catboost_sub.csv',
+        'lgb_sparse_sub.csv',
+        # 'lgb_sub.csv',
+        # 'xgboost_sub.csv'
+    ]
+    X = pd.read_pickle(PICKLE_FOLDER + 'item_id').to_frame()
+    for i in range(len(ensemble_csv)):
+        pred = pd.read_csv(ENSEMBLE_FOLDER + ensemble_csv[i])
+        X = X.merge(pred, 'left', on='item_id', suffixes=('', str(i)), validate='1:1')
 
     print(X.columns)
     X.drop('item_id', axis=1, inplace=True)
+    print(X.shape)
+    assert(X.shape==(TRAIN_SIZE, len(ensemble_csv)))
 
     y = pd.read_pickle(TARGET_PATH)
-    item_id = pd.read_pickle(item_id_pickle_path).to_frame()
-
-    print(X.shape)
     print(y.shape)
-    cv_losses, cv_train_losses = cross_validate(X, y)
+
+    X_test = pd.read_pickle(PICKLE_FOLDER + 'item_id_test').to_frame()
+    for i in range(len(ensemble_pred_csv)):
+        pred = pd.read_csv(ENSEMBLE_FOLDER + ensemble_pred_csv[i])
+        X_test = X_test.merge(pred, 'left', on='item_id', suffixes=('', str(i)), validate='1:1')
+
+    print(X_test.columns)
+    X_test.drop('item_id', axis=1, inplace=True)
+    print(X_test.shape)
+    assert(X_test.shape==(TEST_SIZE, len(ensemble_csv)))
+
+    cv_losses, cv_train_losses = cross_validate(X, y, X_test)
     print(cv_losses)
     print(cv_train_losses)
     print(np.mean(cv_losses))
