@@ -94,7 +94,9 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
     for col in X.columns:
         if X[col].dtype == bool:
             X[col] = X[col].astype(np.int8)
-    X = hstack([csr_matrix(X.values),*bow_features]).tocsr()
+    X = hstack([csr_matrix(X.values),*bow_features])
+    print('sparse matrix produced')
+    X = X.tocsr()
 
     y = None
     if not test:
