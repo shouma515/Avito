@@ -94,7 +94,7 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
     for col in X.columns:
         if X[col].dtype == bool:
             X[col] = X[col].astype(np.int8)
-    X = hstack([csr_matrix(X.values),*bow_features])
+    X = hstack([csr_matrix(X.values),*bow_features]).tocsr()
 
     y = None
     if not test:
@@ -119,7 +119,7 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
     # # X = reduce_mem_usage(X)
     # print('Memory usage of training data is {:.2f} MB'.format(X.memory_usage().sum() / 1024**2))
 
-    return X, y
+    return X[:10000], y[:10000]
 
 
 # Each set of image features is in one folder. And we load features folder by
