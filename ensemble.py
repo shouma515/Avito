@@ -20,10 +20,12 @@ def ensemble_for_lgb_sparse(config, X, y, item_id):
     predicts = []
     val_errors = []
     for i, (train_index, val_index) in enumerate(kf.split(X, y)):
+        # if i < 3:
+        #     continue
         print('Fold ', i)
 
-        X_train, y_train = X.iloc[train_index], y.iloc[train_index]
-        X_val,y_val = X.iloc[val_index], y.iloc[val_index]
+        X_train, y_train = X[train_index], y.iloc[train_index]
+        X_val,y_val = X[val_index], y.iloc[val_index]
         val_id = item_id.iloc[val_index]
 
         # debug info
@@ -58,7 +60,7 @@ def ensemble_for_lgb_sparse(config, X, y, item_id):
 config = config_map['lightgbm_config']
 ENSEMBLE_FOLDER = 'ensemble/'
 
-X, y = prepare_data(config['features'] + ['item_id'], config['image_feature_folders'], test=False)
+X, y = prepare_data(config['features'], config['image_feature_folders'], test=False)
 item_id = pd.read_pickle(PICKLE_FOLDER + 'item_id')
 predicts, val_errors = ensemble_for_lgb_sparse(config, X, y, item_id)
 
@@ -67,7 +69,7 @@ for predict in predicts:
     print(predict.shape)
 ensembled = pd.concat(predicts)
 print(ensembled.shape)
-assert(ensembled.shape == (len(X), 2))
+assert(ensembled.shape == (X.shape[0], 2))
 
 if not os.path.exists(ENSEMBLE_FOLDER):
         os.makedirs(ENSEMBLE_FOLDER)
