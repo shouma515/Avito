@@ -110,7 +110,7 @@ def prepare_data(feature_names, image_feature_folders=[], test=False):
     # X = reduce_mem_usage(X)
     print('Memory usage of training data is {:.2f} MB'.format(X.memory_usage().sum() / 1024**2))
 
-    return X, y
+    return X[:10000], y[:10000]
 
 
 # def reduce_mem_usage(df):
