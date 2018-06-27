@@ -65,7 +65,7 @@ def tune_single_model(parameter_space, config_name, max_evals, trials=None):
     for i in range(1, len(ensemble_csv)):
         pred = pd.read_csv(ENSEMBLE_FOLDER + ensemble_csv[1])
         X = X.merge(pred, 'left', on='item_id', suffixes=('', str(i)))
-    
+
     y = pd.read_pickle(TARGET_PATH)[:10000]
 
     def train_wrapper(params):
@@ -107,11 +107,13 @@ def main():
     for i in range(1, len(ensemble_csv)):
         pred = pd.read_csv(ENSEMBLE_FOLDER + ensemble_csv[1])
         X = X.merge(pred, 'left', on='item_id', suffixes=('', str(i)))
-    
+
     print(X.columns)
     X.drop('item_id', axis=1, inplace=True)
-    
-    y = pd.read_pickle(TARGET_PATH)[:10000]
+
+    y = pd.read_pickle(TARGET_PATH)
+    item_id = pd.read_pickle(item_id_pickle_path).to_frame()
+
     print(X.shape)
     print(y.shape)
     cv_losses, cv_train_losses = cross_validate(X, y)
