@@ -9,7 +9,10 @@ from sklearn.metrics import mean_squared_error
 import math
 from configs import config_map
 
-def ensemble_for_lgb(config, X, y):
+TEST_SIZE = 508438
+SUBMISSION_FOLDER = 'submissions/'
+
+def ensemble_for_lgb(config, X, y, X_test):
     categorical_feature = config['categorical_feature']
     model_params = config['model_params']
     file_code = len(X.columns)
@@ -18,6 +21,7 @@ def ensemble_for_lgb(config, X, y):
     kf = KFold(n_splits=5, shuffle=True, random_state=42)
 
     predicts = []
+    test_preds = []
     val_errors = []
     for i, (train_index, val_index) in enumerate(kf.split(X, y)):
         print('Fold ', i)
@@ -52,6 +56,10 @@ def ensemble_for_lgb(config, X, y):
         predict = model.predict(X_val)
         np.clip(predict, 0, 1, out=predict)
 
+        test_pred = model.predict(X_test)
+        np.clip(test_pred, 0, 1, out=test_pred)
+        test_preds.append(test_pred)
+
         val_error = math.sqrt(mean_squared_error(y_val, predict))
         print('validate caculated: %f' %val_error)
         val_errors.append(val_error)
@@ -60,25 +68,39 @@ def ensemble_for_lgb(config, X, y):
         val_id = val_id.reset_index(drop=True)
         predict = pd.concat([val_id, predict], axis=1)
         predicts.append(predict)
-    return predicts, val_errors
+    return predicts, val_errors, test_preds
 
 config = config_map['lightgbm_config']
 ENSEMBLE_FOLDER = 'ensemble/'
 
 X, y = prepare_data(config['features'] + ['item_id'], config['image_feature_folders'], test=False)
-predicts, val_errors = ensemble_for_lgb(config, X, y)
+X_test, _ = prepare_data(config['features'], config['image_feature_folders'], test=True)
+predicts, val_errors, test_preds = ensemble_for_lgb(config, X, y, X_test)
 
 print('Avg validation error: %f' %(np.mean(val_errors)))
-for predict in predicts:
-    print(predict.shape)
-ensembled = pd.concat(predicts)
-print(ensembled.shape)
-assert(ensembled.shape == (len(X), 2))
+# for predict in predicts:
+#     print(predict.shape)
+# ensembled = pd.concat(predicts)
+# print(ensembled.shape)
+# assert(ensembled.shape == (len(X), 2))
 
-if not os.path.exists(ENSEMBLE_FOLDER):
-        os.makedirs(ENSEMBLE_FOLDER)
-ensembled.to_csv(ENSEMBLE_FOLDER+'lgb.csv', index=False)
+# if not os.path.exists(ENSEMBLE_FOLDER):
+#         os.makedirs(ENSEMBLE_FOLDER)
+# ensembled.to_csv(ENSEMBLE_FOLDER+'lgb.csv', index=False)
 
+pred_sum = test_preds[0] + test_preds[1] + test_preds[2] + test_preds[3] + test_preds[4]
+prediction = pred_sum / 5
+assert(len(prediction) == TEST_SIZE)
+
+submission = pd.read_csv('data/sample_submission.csv')
+# Sample submission file and test dataset has the same item_id
+# in the same order.
+submission['deal_probability'] = prediction
+
+submission.to_csv(
+    '%s%s_%s.csv' %(SUBMISSION_FOLDER, 'lightgbm', '5_folds'),
+    index=False
+)
 
 
 
