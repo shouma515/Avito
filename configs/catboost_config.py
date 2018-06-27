@@ -266,14 +266,14 @@ catboost_config = {
     'model': 'catboost',
     'categorical_feature': [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15],
     'model_params': {
-      'depth': 7,
-      'eval_metric': 'RMSE',
-      'iterations': 200,
-      'l2_leaf_reg': 5,
-      'learning_rate': 0.5335105081584713,
-      'loss_function': 'RMSE', 
-      'random_seed': 42, 
-      'verbose': False
+        'depth': 7,
+        'eval_metric': 'RMSE',
+        'iterations': 1500,
+        'l2_leaf_reg': 2,
+        'learning_rate': 0.36829664227703596,
+        'loss_function': 'RMSE',
+        'random_seed': 42,
+        'verbose': False
     },
     'tune_params': {
         'param_space': {
