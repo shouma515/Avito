@@ -407,11 +407,11 @@ lightgbm_config = {
                 'metric': 'rmse',
                 'num_leaves': hp.choice('num_leaves', [64, 150, 250]),
                 'min_data': hp.choice('min_data', [1000, 1500, 2500]),
-                'num_boost_round': 1000,
-                'early_stopping_rounds': 35,
+                'num_boost_round': 2500,
+                'early_stopping_rounds': 100,
                 'verbose': -1
             },
         },
-        'max_evals': 30
+        'max_evals': 60
     }
 }
