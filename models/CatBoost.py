@@ -1,6 +1,6 @@
-from catboost import CatBoostRegressor
+from catboost import CatBoostRegressor, Pool
 
-class CatBoost():
+class CatBoostModel():
     def __init__(self, model_params = None, data_params = None):
         self.model_params = model_params
         self.data_params = data_params
@@ -10,13 +10,13 @@ class CatBoost():
     def fit(self, X_train, y_train):
         cat_features = self.data_params['categorical_feature']
         # X_train.fillna(-999, inplace=True)
-        dtrain = CatBoost.Pool(X_train, y_train, cat_features=list(cat_features), feature_names=X_train.columns)
+        dtrain = Pool(X_train, y_train, cat_features=list(cat_features), feature_names=X_train.columns)
         # X_train.fillna(-999, inplace=True)
         return self.model.fit(dtrain)
 
     def fit_predict(self, X_train, y_train):
         cat_features = self.data_params['categorical_feature']
-        dtrain = CatBoost.Pool(X_train, y_train, cat_features=list(cat_features), feature_names=X_train.columns)
+        dtrain = Pool(X_train, y_train, cat_features=list(cat_features), feature_names=X_train.columns)
         # X_train.fillna(-999, inplace=True)
         return self.model.fit(dtrain)
 
